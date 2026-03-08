@@ -325,12 +325,12 @@
     }
   </style>
 
-  <!-- Three.js r150 ESM importmap (LocalContentCanAccessRemoteUrls = True 으로 CDN 로드 가능) -->
+  <!-- Three.js r150 ESM importmap (로컬 번들 — CDN 의존성 제거 v1.0.1) -->
   <script type="importmap">
   {
     "imports": {
-      "three":           "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js",
-      "three/addons/":   "https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/"
+      "three":           "./vendor/three.module.js",
+      "three/addons/":   "./vendor/addons/"
     }
   }
   </script>
