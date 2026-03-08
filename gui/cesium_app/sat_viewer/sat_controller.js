@@ -88,8 +88,13 @@ function buildLights() {
   sun.shadow.bias = -0.0008;
   scene.add(sun);
 
-  scene.add(Object.assign(new THREE.DirectionalLight(0x2255cc, 0.40), { position: new THREE.Vector3(0, -5, 1) }));
-  scene.add(Object.assign(new THREE.DirectionalLight(0x223355, 0.25), { position: new THREE.Vector3(-3, 1, -3) }));
+  const fill = new THREE.DirectionalLight(0x2255cc, 0.40);
+  fill.position.set(0, -5, 1);
+  scene.add(fill);
+
+  const back = new THREE.DirectionalLight(0x223355, 0.25);
+  back.position.set(-3, 1, -3);
+  scene.add(back);
 }
 
 // ── 초기화 (한 번만 실행) ────────────────────────────────────────────────────
@@ -353,18 +358,35 @@ function buildAndTag(cfg) {
 
 // ── 공개 API ─────────────────────────────────────────────────────────────────
 window.showSatViewer = function (scenarios) {
-  if (!initPromise) initPromise = initSatViewer();
-  initPromise.then(() => {
-    document.getElementById(CONT_ID).style.display = 'block';
-    isVisible = true;
-    setCesiumLowPower(true);
-    // 하위 호환: 단일 cfg dict 전달 시 자동 래핑
-    if (!Array.isArray(scenarios)) {
-      scenarios = scenarios ? [{ sat_id: 'SAT-1', name: 'SAT-1', sat_config: scenarios }] : [];
-    }
-    rebuildAll(scenarios);
-    startLoop();
-  });
+  // ① 컨테이너를 먼저 보이게 해야 canvas가 실제 크기를 가짐
+  const cont = document.getElementById(CONT_ID);
+  cont.style.display = 'block';
+  isVisible = true;
+  setCesiumLowPower(true);
+
+  // ② 그 다음 초기화 — rAF 1프레임 후 레이아웃 확정 보장
+  // 하위 호환: 단일 cfg dict 전달 시 자동 래핑
+  if (!Array.isArray(scenarios)) {
+    scenarios = scenarios ? [{ sat_id: 'SAT-1', name: 'SAT-1', sat_config: scenarios }] : [];
+  }
+
+  if (!initPromise) {
+    requestAnimationFrame(() => {
+      initPromise = initSatViewer();
+      initPromise
+        .then(() => { rebuildAll(scenarios); startLoop(); })
+        .catch(err => {
+          console.error('[satViewer] init failed:', err);
+          cont.style.display = 'none';
+          isVisible = false;
+          setCesiumLowPower(false);
+        });
+    });
+  } else {
+    initPromise
+      .then(() => { rebuildAll(scenarios); startLoop(); })
+      .catch(err => console.error('[satViewer] rebuildAll failed:', err));
+  }
 };
 
 window.hideSatViewer = function () {
