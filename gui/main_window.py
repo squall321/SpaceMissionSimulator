@@ -40,6 +40,8 @@ from gui.widgets.mission_panel import MissionPanel
 from gui.widgets.changelog_dialog import ChangelogDialog
 from gui.widgets.log_panel import LogPanel
 from gui.widgets.settings_dialog import SettingsDialog, load_settings
+from gui.widgets.scorecard_viewer import ScorecardViewer   # v0.9.0
+from gui.widgets.report_dialog import ReportDialog          # v0.9.0
 import version as V
 
 BASE_DIR = Path(__file__).parent
@@ -182,6 +184,10 @@ class MainWindow(QMainWindow):
         self.parametric_panel = ParametricStudyPanel()
         self.right_stack.addWidget(self.parametric_panel)
 
+        # -- 페이지 7: 종합 설계 ScoreCard (v0.9.0) --
+        self.scorecard_viewer = ScorecardViewer()
+        self.right_stack.addWidget(self.scorecard_viewer)
+
         # 메인 스플리터
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(center_widget)
@@ -264,6 +270,8 @@ class MainWindow(QMainWindow):
         self.mission_panel.orbit_recommended.connect(self._apply_recommended_orbit)
         # Parametric Study 시그널
         self.parametric_panel.orbit_selected.connect(self._on_parametric_orbit)
+        # v0.9.0: ScoreCard 리포트 익스포트
+        self.scorecard_viewer.export_requested.connect(self._on_report_export)
         # v0.6.0: GMAT 상태 배지 초기화
         self._init_gmat_status()
 
@@ -313,6 +321,21 @@ class MainWindow(QMainWindow):
 
     def _show_changelog(self):
         dlg = ChangelogDialog(self)
+        dlg.exec()
+
+    def _on_report_export(self, score):
+        """v0.9.0 ScoreCard → ReportDialog 오픈"""
+        if not hasattr(self, 'results_history') or not self.results_history:
+            return
+        last = self.results_history[-1]
+        dlg = ReportDialog(
+            score      = score,
+            orbit      = last.get('orbit'),
+            budget     = last.get('budget'),
+            thermal    = last.get('thermal'),
+            radiation  = last.get('radiation'),
+            parent     = self,
+        )
         dlg.exec()
 
     def show_settings_dialog(self):
@@ -420,6 +443,7 @@ class MainWindow(QMainWindow):
         self.thermal_viewer.update_data(thermal)
         self.rad_viewer.update_data(rad)
         self.budget_viewer.update_data(budget)
+        self.scorecard_viewer.update_data(score)   # v0.9.0
 
         # CesiumJS 궤도 데이터 전송
         orbit_dict = self._orbit_to_dict(orbit, budget)
@@ -518,7 +542,8 @@ class MainWindow(QMainWindow):
             "thermal":   3,
             "radiation": 4,
             "budget":    5,
-            "study":     6
+            "study":     6,
+            "score":     7,
         }
         if section in mapping:
             self.right_stack.setCurrentIndex(mapping[section])

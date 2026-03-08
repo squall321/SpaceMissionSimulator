@@ -5,16 +5,30 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 8
+MINOR = 9
 PATCH = 0
 STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 VERSION_FULL = f"v{VERSION}-{STAGE}"
-BUILD_DATE = "2026-03-09"
+BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.9.0",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "DesignScoreCard UI + Auto Report Generator",
+        "changes": [
+            ("feat", "🏆 ScorecardViewer — Radar차트 + Gauge + 지표 테이블 (PASS/MARGIN/FAIL 배지)"),
+            ("feat", "📄 ReportDialog — Jinja2 HTML 리포트 미리보기 + Save HTML + 브라우저 열기"),
+            ("feat", "🔧 ReportGenerator — 5섹션 HTML 리포트 (궤도/예산/열/방사선/scorecard)"),
+            ("feat", "📐 mission_report.html.j2 — 다크테마 풀-섹션 HTML 리포트 템플릿"),
+            ("feat", "🔗 Sidebar 'Score' 탭 추가 + main_window 페이지 index 7 연결"),
+            ("refactor", "♻️ Valispace 어댑터 제외 (유료 서비스)"),
+        ],
+    },
     {
         "version": "0.8.0",
         "date": "2026-03-09",

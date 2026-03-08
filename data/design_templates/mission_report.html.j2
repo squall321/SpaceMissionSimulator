@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SpaceD-AADE Mission Analysis Report</title>
+<style>
+  :root {
+    --bg:      #0a0f1e;
+    --bg2:     #0d1525;
+    --bg3:     #060c18;
+    --border:  #1e2a3a;
+    --accent:  #00dcff;
+    --green:   #39ff96;
+    --amber:   #ffa040;
+    --red:     #ff4d6d;
+    --text:    #c8d8e4;
+    --muted:   #4a6a7a;
+  }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  /* === COVER === */
+  .cover {
+    background: linear-gradient(135deg, #060c18 0%, #0a1a2e 60%, #0d2040 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 40px 48px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cover-logo  { font-size: 32px; }
+  .cover-title { font-size: 26px; font-weight: 700; color: var(--accent); letter-spacing: 1px; margin-top: 6px; }
+  .cover-sub   { font-size: 13px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .cover-meta  { margin-top: 18px; display: flex; gap: 40px; flex-wrap: wrap; }
+  .cover-meta-item label { color: var(--muted); font-size: 9px; letter-spacing: 1px; display: block; }
+  .cover-meta-item span  { font-size: 13px; font-weight: 600; color: var(--text); }
+  .grade-badge {
+    display: inline-block;
+    width: 56px; height: 56px;
+    border-radius: 8px;
+    border: 2px solid {{ grade_color }};
+    color: {{ grade_color }};
+    font-size: 26px; font-weight: 900;
+    text-align: center; line-height: 52px;
+    background: #10201a;
+    margin-top: 2px;
+  }
+  .score-big  { font-size: 42px; font-weight: 700; color: {{ grade_color }}; line-height: 1; }
+  .score-unit { font-size: 14px; color: var(--muted); }
+
+  /* === SECTION === */
+  .section { padding: 28px 48px; border-bottom: 1px solid var(--border); }
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--accent);
+    border-left: 3px solid var(--accent);
+    padding-left: 10px; margin-bottom: 16px;
+  }
+
+  /* === GRID CARDS === */
+  .card-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .card-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .card-value { font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+  .card-unit  { font-size: 10px; color: var(--muted); margin-left: 3px; }
+
+  /* === TABLE === */
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  thead tr { background: var(--bg3); }
+  thead th {
+    padding: 8px 12px; text-align: left;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+  tbody td { padding: 7px 12px; font-size: 11px; vertical-align: middle; }
+
+  /* === BADGES === */
+  .badge {
+    display: inline-block;
+    padding: 2px 7px; border-radius: 3px;
+    font-size: 8px; font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .badge-pass   { background:#1a4a2a; color: var(--green);  border: 1px solid var(--green); }
+  .badge-margin { background:#332200; color: var(--amber);  border: 1px solid var(--amber); }
+  .badge-fail   { background:#4a1a1a; color: var(--red);    border: 1px solid var(--red); }
+  .badge-low    { background:#0a1a10; color: var(--green);  border: 1px solid var(--green); }
+  .badge-med    { background:#332200; color: var(--amber);  border: 1px solid var(--amber); }
+  .badge-high   { background:#4a1a1a; color: var(--red);    border: 1px solid var(--red); }
+  .badge-grade  { font-size: 14px; padding: 4px 12px; border-radius: 4px;
+                  border: 1.5px solid {{ grade_color }};
+                  color: {{ grade_color }}; background:#10201a; }
+
+  /* === PROGRESS BAR === */
+  .bar-wrap { background: #1a2535; border-radius: 4px; height: 8px; width: 120px; display:inline-block; vertical-align:middle; }
+  .bar-fill { height:100%; border-radius: 4px; }
+
+  /* === FOOTER === */
+  .footer {
+    padding: 16px 48px;
+    font-size: 9px; color: var(--muted);
+    display: flex; justify-content: space-between;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- ====================================== COVER ====================================== -->
+<div class="cover">
+  <div class="cover-logo">⚡</div>
+  <div class="cover-sub">SpaceD · AADE Platform</div>
+  <div class="cover-title">Mission Analysis Report</div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <label>Generated</label>
+      <span>{{ generated_at }}</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Orbit</label>
+      <span>{{ orbit_summary }}</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Mission Duration</label>
+      <span>{{ duration_days }} days</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Platform Version</label>
+      <span>{{ version }}</span>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;display:flex;align-items:center;gap:20px;">
+    <div>
+      <div class="score-big">{{ total_score }}</div>
+      <div class="score-unit">/ 100 pt</div>
+    </div>
+    <div class="grade-badge">{{ grade }}</div>
+    <div style="margin-left:16px;">
+      <div style="color:var(--muted);font-size:9px;letter-spacing:1px;">PASS / TOTAL</div>
+      <div style="font-size:18px;font-weight:700;color:{{ pass_color }};">{{ pass_count }} / {{ total_ind }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================== 1. ORBIT ====================================== -->
+<div class="section">
+  <div class="section-title">1 · Orbit Parameters &amp; Results</div>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">Altitude</div>
+      <div class="card-value">{{ orbit.altitude_km }}<span class="card-unit">km</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Inclination</div>
+      <div class="card-value">{{ orbit.inclination_deg }}<span class="card-unit">°</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Period</div>
+      <div class="card-value">{{ orbit.period_min }}<span class="card-unit">min</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Sunlight Fraction</div>
+      <div class="card-value">{{ orbit.sunlight_pct }}<span class="card-unit">%</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Contacts / Day</div>
+      <div class="card-value">{{ orbit.contacts_per_day }}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Contact Time</div>
+      <div class="card-value">{{ orbit.contact_min_day }}<span class="card-unit">min/day</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================== 2. BUDGET ====================================== -->
+<div class="section">
+  <div class="section-title">2 · Mass &amp; Power Budget</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+    <!-- Mass Table -->
+    <div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;">MASS BUDGET</div>
+      <table>
+        <thead>
+          <tr><th>Subsystem</th><th style="text-align:right;">CBE [kg]</th><th style="text-align:right;">MEV [kg]</th></tr>
+        </thead>
+        <tbody>
+          {% for row in mass_rows %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td style="text-align:right;">{{ row.cbe }}</td>
+            <td style="text-align:right;">{{ row.mev }}</td>
+          </tr>
+          {% endfor %}
+          <tr style="font-weight:700;border-top:1px solid var(--accent);">
+            <td style="color:var(--accent);">TOTAL</td>
+            <td style="text-align:right;color:var(--accent);">{{ budget.mass_total_cbe }}</td>
+            <td style="text-align:right;color:var(--accent);">{{ budget.mass_total_mev }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:10px;">
+        Mass Margin: <strong style="color:{{ mass_margin_color }};">{{ budget.mass_margin_pct }}%</strong>
+        &nbsp;&nbsp; Launch Available: <strong>{{ budget.mass_launch_available }} kg</strong>
+      </div>
+    </div>
+
+    <!-- Power Cards -->
+    <div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;">POWER BUDGET</div>
+      <div class="card-grid" style="grid-template-columns:1fr 1fr;">
+        <div class="card">
+          <div class="card-label">Payload</div>
+          <div class="card-value" style="font-size:16px;">{{ budget.power_payload_w }}<span class="card-unit">W</span></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Bus</div>
+          <div class="card-value" style="font-size:16px;">{{ budget.power_bus_w }}<span class="card-unit">W</span></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Total Required</div>
+          <div class="card-value" style="font-size:16px;">{{ budget.power_total_w }}<span class="card-unit">W</span></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Solar Generated</div>
+          <div class="card-value" style="font-size:16px;color:var(--green);">{{ budget.solar_generated_w }}<span class="card-unit">W</span></div>
+        </div>
+        <div class="card" style="grid-column:span 2;">
+          <div class="card-label">Power Margin</div>
+          <div class="card-value" style="font-size:18px;color:{{ power_margin_color }};">
+            {{ budget.power_margin_w }} W
+            <span style="font-size:12px;margin-left:8px;">( {{ budget.power_margin_pct | round(1) }}% )</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:10px;">
+        Battery: <strong>{{ budget.battery_capacity_wh | round(0) }} Wh</strong> &nbsp;
+        DOD: <strong style="color:{{ dod_color }};">{{ budget.battery_dod_pct }}%</strong> &nbsp;
+        Panel: <strong>{{ budget.solar_panel_area_m2 }} m²</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================== 3. THERMAL ====================================== -->
+<div class="section">
+  <div class="section-title">3 · Thermal Analysis</div>
+  <table>
+    <thead>
+      <tr><th>Node</th><th style="text-align:right;">Min [°C]</th><th style="text-align:right;">Max [°C]</th><th style="text-align:right;">Avg [°C]</th></tr>
+    </thead>
+    <tbody>
+      {% for row in thermal_rows %}
+      <tr>
+        <td>{{ row.name }}</td>
+        <td style="text-align:right;">{{ row.min }}</td>
+        <td style="text-align:right;">{{ row.max }}</td>
+        <td style="text-align:right;">{{ row.avg }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="margin-top:10px;font-size:10px;">
+    Hot Case: <strong style="color:var(--amber);">{{ thermal.temp_max_c }}°C</strong> &nbsp;
+    Cold Case: <strong style="color:#88aaff;">{{ thermal.temp_min_c }}°C</strong> &nbsp;
+    Radiator Required: <strong>{{ thermal.radiator_m2 }} m²</strong>
+  </div>
+</div>
+
+<!-- ====================================== 4. RADIATION ====================================== -->
+<div class="section">
+  <div class="section-title">4 · Radiation Environment</div>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-label">TID (5-year)</div>
+      <div class="card-value" style="color:{{ tid_color }};">{{ rad.tid_5yr }}<span class="card-unit">krad</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">TID / Year</div>
+      <div class="card-value" style="font-size:16px;">{{ rad.tid_per_year }}<span class="card-unit">krad/yr</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Shielding (Design)</div>
+      <div class="card-value" style="font-size:16px;">{{ rad.shielding_mm }}<span class="card-unit">mm Al</span></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Component Grade</div>
+      <div class="card-value" style="font-size:14px;">{{ rad.component_grade }}</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Risk Level</div>
+      <div style="margin-top:6px;">
+        <span class="badge {{ risk_badge_class }}">{{ rad.risk_level }}</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">SEU Rate</div>
+      <div class="card-value" style="font-size:14px;">{{ rad.seu_rate }}<span class="card-unit">/day</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================== 5. SCORECARD ====================================== -->
+<div class="section">
+  <div class="section-title">5 · Design ScoreCard</div>
+  <table>
+    <thead>
+      <tr>
+        <th>지표</th>
+        <th style="text-align:right;">현재값</th>
+        <th style="text-align:right;">한계</th>
+        <th style="text-align:right;">마진</th>
+        <th>결과</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in score_rows %}
+      <tr>
+        <td>{{ row.name }}</td>
+        <td style="text-align:right;font-weight:600;">{{ row.value }} {{ row.unit }}</td>
+        <td style="text-align:right;color:var(--muted);">{{ row.op }}{{ row.limit }} {{ row.unit }}</td>
+        <td style="text-align:right;color:{{ row.margin_color }};font-weight:600;">{{ row.margin_str }}</td>
+        <td><span class="badge {{ row.badge_class }}">{{ row.badge_text }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="margin-top:14px;display:flex;align-items:center;gap:20px;">
+    <span class="badge badge-grade">{{ grade }}</span>
+    <span style="font-size:18px;font-weight:700;color:{{ grade_color }};">{{ total_score }} / 100</span>
+    <span style="color:var(--muted);font-size:10px;">PASS {{ pass_count }} / {{ total_ind }}</span>
+  </div>
+</div>
+
+<!-- ====================================== FOOTER ====================================== -->
+<div class="footer">
+  <span>SpaceD-AADE Platform {{ version }} · Space Data Center</span>
+  <span>Generated: {{ generated_at }}</span>
+</div>
+
+</body>
+</html>
