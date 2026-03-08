@@ -47,6 +47,7 @@ class CesiumBridge(QObject):
     """Python ↔ CesiumJS 양방향 통신 브리지"""
     orbitDataChanged       = Signal(str)
     groundStationsChanged  = Signal(str)
+    satSelected            = Signal(str)   # 3D 뷰어 위성 클릭 → Python
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -61,6 +62,11 @@ class CesiumBridge(QObject):
             self.groundStationsChanged.emit(self._last_stations)
         if self._last_orbit:
             self.orbitDataChanged.emit(self._last_orbit)
+
+    @Slot(str)
+    def notify_sat_selected(self, sat_id: str):
+        """JS selectSat 실행 시 호출됨 → 시나리오 패널 카드 동기화"""
+        self.satSelected.emit(sat_id)
 
     def push_orbit(self, orbit_dict: dict):
         self._last_orbit = json.dumps(orbit_dict)
@@ -236,6 +242,10 @@ class MainWindow(QMainWindow):
         self.orbit_config.params_changed.connect(self.trigger_analysis)
         # v0.5.0: 시나리오 변경 시 3D 뷰어 실시간 업데이트
         self.scenario_panel.scenarios_changed.connect(self._on_scenarios_changed)
+        # v0.5.2: 3D 뷰어 위성 클릭 → 좌측 카드 동기화
+        self.bridge.satSelected.connect(self.scenario_panel.select_by_id)
+        # v0.5.2: 시나리오 패널 비교 버튼
+        self.scenario_panel.compare_requested.connect(self.show_comparison_dialog)
         self.sidebar.nav_changed.connect(self.on_nav_changed)
         self.sidebar.optimize_clicked.connect(self.show_optimization_dialog)
         self.dashboard.satellite_selected.connect(self.on_satellite_selected)
@@ -256,7 +266,8 @@ class MainWindow(QMainWindow):
     def show_comparison_dialog(self):
         if not hasattr(self, 'results_history') or not self.results_history:
             return
-        dlg = ComparisonDialog(self.results_history, self)
+        names = [s["name"] for s in self.scenario_panel._scenarios]
+        dlg = ComparisonDialog(self.results_history, self, scenario_names=names)
         dlg.exec()
 
     def show_optimization_dialog(self):

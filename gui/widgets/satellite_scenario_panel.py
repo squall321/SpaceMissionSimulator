@@ -14,7 +14,7 @@ from pathlib    import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QSizePolicy, QStackedWidget, QAbstractScrollArea,
-    QToolButton, QFileDialog, QMessageBox,
+    QToolButton, QFileDialog, QMessageBox, QLineEdit,
 )
 from PySide6.QtCore  import Signal, Qt, QSize
 from PySide6.QtGui   import QColor, QPainter, QPen, QFont
@@ -29,8 +29,9 @@ from gui.widgets.satellite_config import SatelliteConfigPanel
 # ── 시나리오 아이템 카드 ──────────────────────────────────────────────────────
 class ScenarioCard(QFrame):
     """시나리오 목록의 개별 카드 위젯"""
-    clicked    = Signal(str)   # scenario_id
-    delete_req = Signal(str)   # scenario_id
+    clicked     = Signal(str)        # scenario_id
+    delete_req  = Signal(str)        # scenario_id
+    name_changed = Signal(str, str)  # scenario_id, new_name
 
     # 색상 팔레트 (시나리오 번호별 고유 색)
     COLORS = [
@@ -72,9 +73,23 @@ class ScenarioCard(QFrame):
         self._name_lbl.setStyleSheet(
             "color:#d0e8f0; font-size:11px; font-weight:bold;"
         )
+        # 인라인 편집용 QLineEdit (평소 숨김)
+        self._name_edit = QLineEdit(name)
+        self._name_edit.setFixedHeight(18)
+        self._name_edit.setStyleSheet("""
+            QLineEdit {
+                background:#0d1a28; color:#00dcff;
+                border:1px solid #00dcff; border-radius:3px;
+                font-size:11px; font-weight:bold; padding:0 3px;
+            }
+        """)
+        self._name_edit.setVisible(False)
+        self._name_edit.returnPressed.connect(self._finish_edit)
+        self._name_edit.editingFinished.connect(self._finish_edit)
+        text_l.addWidget(self._name_lbl)
+        text_l.addWidget(self._name_edit)
         self._orbit_lbl = QLabel(orbit_summary)
         self._orbit_lbl.setStyleSheet("color:#4a6a7a; font-size:9px;")
-        text_l.addWidget(self._name_lbl)
         text_l.addWidget(self._orbit_lbl)
         layout.addWidget(text_w, stretch=1)
 
@@ -91,6 +106,7 @@ class ScenarioCard(QFrame):
         layout.addWidget(del_btn)
 
         self._update_style()
+        self.setToolTip("클릭: 선택  |  더블클릭: 이름 편집")
 
     def set_selected(self, selected: bool):
         self._selected = selected
@@ -98,6 +114,25 @@ class ScenarioCard(QFrame):
 
     def set_name(self, name: str):
         self._name_lbl.setText(name)
+        self._name_edit.setText(name)
+
+    def start_edit(self):
+        """\uc774\ub984 \uc778\ub77c\uc778 \ud3b8\uc9d1 \uc2dc\uc791"""
+        self._name_edit.setText(self._name_lbl.text())
+        self._name_lbl.setVisible(False)
+        self._name_edit.setVisible(True)
+        self._name_edit.selectAll()
+        self._name_edit.setFocus()
+
+    def _finish_edit(self):
+        """\uc5d4\ud130 \ub610\ub294 \ud3ec\ucee4\uc2a4 \uc78a\uc744 \ub54c \ud3b8\uc9d1 \uc644\ub8cc"""
+        if not self._name_edit.isVisible():
+            return
+        new_name = self._name_edit.text().strip() or self._name_lbl.text()
+        self._name_edit.setVisible(False)
+        self._name_lbl.setVisible(True)
+        self._name_lbl.setText(new_name)
+        self.name_changed.emit(self.scenario_id, new_name)
 
     def set_orbit_summary(self, summary: str):
         self._orbit_lbl.setText(summary)
@@ -128,6 +163,11 @@ class ScenarioCard(QFrame):
         self.clicked.emit(self.scenario_id)
         super().mousePressEvent(event)
 
+    def mouseDoubleClickEvent(self, event):
+        self.start_edit()
+        # double-click 시는 clicked 시그널 발사 안 함
+        event.accept()
+
 
 # ── 빈 상태 플레이스홀더 ─────────────────────────────────────────────────────
 class EmptyPlaceholder(QWidget):
@@ -152,8 +192,9 @@ class SatelliteScenarioPanel(QWidget):
     분석 결과 1건 = 시나리오 1개.
     각 시나리오는 독립적인 SatelliteConfigPanel 을 가짐.
     """
-    scenarios_changed = Signal(list)   # [{sat_id, name, sat_config}, ...]
-    scenario_selected = Signal(str)    # 선택된 scenario_id
+    scenarios_changed  = Signal(list)   # [{sat_id, name, sat_config}, ...]
+    scenario_selected  = Signal(str)    # 선택된 scenario_id
+    compare_requested  = Signal()       # 비교 버튼 클릭
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -208,6 +249,14 @@ class SatelliteScenarioPanel(QWidget):
         self._load_btn.setStyleSheet(_btn_ss)
         self._load_btn.clicked.connect(self.load_scenarios)
         hdr_l.addWidget(self._load_btn)
+
+        # 비교 버튼
+        self._compare_btn = QPushButton("비교")
+        self._compare_btn.setFixedHeight(22)
+        self._compare_btn.setToolTip("시나리오 간 성능 비교표")
+        self._compare_btn.setStyleSheet(_btn_ss)
+        self._compare_btn.clicked.connect(self.compare_requested)
+        hdr_l.addWidget(self._compare_btn)
 
         # 전체 클리어 버튼
         self._clear_btn = QPushButton("전체 삭제")
@@ -292,6 +341,7 @@ class SatelliteScenarioPanel(QWidget):
         card = ScenarioCard(scenario_id, name, orbit_summary, idx)
         card.clicked.connect(self._on_card_clicked)
         card.delete_req.connect(self.remove_scenario)
+        card.name_changed.connect(self._on_name_changed)
         # stretch 앞에 삽입
         self._cards_layout.insertWidget(self._cards_layout.count() - 1, card)
 
@@ -382,9 +432,22 @@ class SatelliteScenarioPanel(QWidget):
     def _on_card_clicked(self, scenario_id: str):
         self._select(scenario_id)
 
+    def select_by_id(self, scenario_id: str):
+        """3D 뷰어 클릭 등 외부에서 선택 요청 — 실제 카드 하이라이트"""
+        if self._find(scenario_id):
+            self._select(scenario_id)
+
     def _on_config_changed(self, scenario_id: str, cfg: dict):
         """설정 변경 시 3D 뷰어에 전체 시나리오 재전송"""
         self._emit_scenarios()
+
+    def _on_name_changed(self, scenario_id: str, new_name: str):
+        """카드 더블클릭 이름 편집 완료 → 내부 데이터 반영"""
+        entry = self._find(scenario_id)
+        if entry:
+            entry["name"] = new_name
+            self._update_status()
+            self._emit_scenarios()  # 3D 레이블 갱신 포함
 
     def _emit_scenarios(self):
         self.scenarios_changed.emit(self.get_all_scenarios())

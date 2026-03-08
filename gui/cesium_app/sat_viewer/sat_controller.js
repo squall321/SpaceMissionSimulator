@@ -279,6 +279,9 @@ function selectSat(sat_id) {
   entry.rimLight.intensity = 3.5;
   entry.rimLight.distance  = 6;
 
+  // Python 카드도 동기화 (QWebChannel bridge)
+  window._bridge?.notify_sat_selected?.(sat_id);
+
   // 카메라 타겟 부드럽게 이동
   const fromTarget = controls.target.clone();
   const toTarget   = new THREE.Vector3(entry.xOffset, 0, 0);

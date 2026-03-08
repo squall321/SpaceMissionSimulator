@@ -3,18 +3,21 @@ Comparison Dialog
 다중 위성 분석 결과를 한눈에 비교하는 표를 띄우는 다이얼로그
 """
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QPushButton, QLabel, QHBoxLayout
+    QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView,
+    QPushButton, QLabel, QHBoxLayout, QFileDialog, QMessageBox
 )
 from PySide6.QtCore import Qt
 
 class ComparisonDialog(QDialog):
-    def __init__(self, results_history, parent=None):
+    def __init__(self, results_history, parent=None, scenario_names=None):
         super().__init__(parent)
+        self._results_history = results_history
+        self._scenario_names  = scenario_names or []
         self.setWindowTitle("Satellite Constellation Comparison")
         self.resize(800, 500)
-        self.setup_ui(results_history)
+        self.setup_ui(results_history, self._scenario_names)
 
-    def setup_ui(self, results_history):
+    def setup_ui(self, results_history, scenario_names):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(10)
@@ -55,8 +58,10 @@ class ComparisonDialog(QDialog):
         
         # 행 헤더 라벨 적용
         self.table.setVerticalHeaderLabels([row[0] for row in ROWS])
-        # 열 헤더 라벨 적용 (SAT-1, SAT-2...)
-        self.table.setHorizontalHeaderLabels([f"SAT-{i+1}" for i in range(cols)])
+        # 열 헤더 라벨 적용 (시나리오 이름 우선, 없으면 SAT-N)
+        col_names = [(scenario_names[i] if i < len(scenario_names) else f"SAT-{i+1}")
+                     for i in range(cols)]
+        self.table.setHorizontalHeaderLabels(col_names)
 
         # 데이터 채우기
         for col_idx, results in enumerate(results_history):
@@ -115,7 +120,29 @@ class ComparisonDialog(QDialog):
         QPushButton:hover { background: rgba(0, 200, 255, 0.6); }
         """)
         
+        _BTN = """
+        QPushButton {
+            background: rgba(0, 150, 200, 0.4);
+            color: #ffffff;
+            border: 1px solid rgba(0, 220, 255, 0.6);
+            border-radius: 4px;
+            padding: 6px 15px;
+            font-size: 11px; font-weight: bold;
+            max-width: 130px;
+        }
+        QPushButton:hover { background: rgba(0, 200, 255, 0.6); }
+        """
+        btn_excel = QPushButton("📊 Export Excel")
+        btn_excel.clicked.connect(self._export_excel)
+        btn_excel.setStyleSheet(_BTN)
+
+        btn_pdf = QPushButton("📄 Export PDF")
+        btn_pdf.clicked.connect(self._export_pdf)
+        btn_pdf.setStyleSheet(_BTN)
+
         btn_layout = QHBoxLayout()
+        btn_layout.addWidget(btn_excel)
+        btn_layout.addWidget(btn_pdf)
         btn_layout.addStretch()
         btn_layout.addWidget(btn_close)
         layout.addLayout(btn_layout)
@@ -123,3 +150,32 @@ class ComparisonDialog(QDialog):
         self.setStyleSheet("""
         QDialog { background: #050a14; }
         """)
+
+    # ── Export helpers ────────────────────────────────────────────────────────
+    def _export_excel(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save Excel", "mission_analysis.xlsx",
+            "Excel Files (*.xlsx)"
+        )
+        if not path:
+            return
+        try:
+            from gui.utils.export_service import export_excel
+            export_excel(self._results_history, self._scenario_names, path)
+            QMessageBox.information(self, "Export", f"Excel 저장 완료:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", str(e))
+
+    def _export_pdf(self):
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Save PDF", "mission_analysis.pdf",
+            "PDF Files (*.pdf)"
+        )
+        if not path:
+            return
+        try:
+            from gui.utils.export_service import export_pdf
+            export_pdf(self._results_history, self._scenario_names, path)
+            QMessageBox.information(self, "Export", f"PDF 저장 완료:\n{path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", str(e))
