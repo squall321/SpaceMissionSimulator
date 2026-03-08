@@ -5,8 +5,8 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 2
-PATCH = 4
+MINOR = 3
+PATCH = 0
 STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
@@ -15,6 +15,20 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.3.0",
+        "date": "2026-03-09",
+        "stage": "alpha",
+        "highlights": "Parametric Study Panel — 고도×경사각 2D 히트맵",
+        "changes": [
+            ("feat", "📈 Parametric Study Panel 도입 — 해석적 근사로 고도×경사각 10×10 그리드 계산"),
+            ("feat", "🌡️ 10개 지표 히트맵 — 주기/일조율/GSD/TID/접속횟수/전력마진 등 컴보박스로 선택"),
+            ("feat", "☕ SSO 대상 자동 강조 표시 — 모든 SSO 섹션에 다른 하이라이트 색상"),
+            ("feat", "🎯 셀 더블클릭 → 'Apply to Orbit Config' — 선택 구점을 Orbit 설정에 즉시 반영 + 전체 분석 실행"),
+            ("feat", "📦 core/services/parametric_study.py — ParametricStudyService (GMAT무관, ms 단위 계산)"),
+            ("feat", "🗃️ 접속 시간/재방문주기/다항작력 ΔV 수식 포함"),
+        ],
+    },
     {
         "version": "0.2.4",
         "date": "2026-03-08",

@@ -31,6 +31,7 @@ from gui.widgets.timeline     import TimelineWidget
 from gui.widgets.thermal_viewer import ThermalViewer
 from gui.widgets.radiation_viewer import RadiationViewer
 from gui.widgets.budget_viewer  import BudgetViewer
+from gui.widgets.parametric_study_panel import ParametricStudyPanel
 from gui.controllers.analysis_worker import AnalysisWorker
 from gui.widgets.comparison_dialog import ComparisonDialog
 from gui.widgets.optimization_dialog import OrbitOptimizationDialog
@@ -160,6 +161,10 @@ class MainWindow(QMainWindow):
         self.budget_viewer = BudgetViewer()
         self.right_stack.addWidget(self.budget_viewer)
 
+        # -- 페이지 6: 파라메트릭 스터디 (고도×경사각 히트맵) --
+        self.parametric_panel = ParametricStudyPanel()
+        self.right_stack.addWidget(self.parametric_panel)
+
         # 메인 스플리터
         splitter = QSplitter(Qt.Horizontal)
         splitter.addWidget(center_widget)
@@ -234,6 +239,8 @@ class MainWindow(QMainWindow):
         self.dashboard.compare_requested.connect(self.show_comparison_dialog)
         # Mission Panel 시그널
         self.mission_panel.orbit_recommended.connect(self._apply_recommended_orbit)
+        # Parametric Study 시그널
+        self.parametric_panel.orbit_selected.connect(self._on_parametric_orbit)
 
     def show_comparison_dialog(self):
         if not hasattr(self, 'results_history') or not self.results_history:
@@ -251,6 +258,12 @@ class MainWindow(QMainWindow):
     def _apply_optimized_orbit(self, orbit_params: OrbitParams):
         """최적화 결과를 UI에 적용하고 분석 실행"""
         self.orbit_config.set_params(orbit_params)
+        self.run_analysis(orbit_params)
+
+    def _on_parametric_orbit(self, orbit_params: OrbitParams):
+        """파라메트릭 스터디 선택 궤도 → Orbit Config 적용 후 분석"""
+        self.orbit_config.set_params(orbit_params)
+        self.on_nav_changed("orbit")    # Orbit 패널로 이동
         self.run_analysis(orbit_params)
 
     def _apply_recommended_orbit(self, orbit_params: OrbitParams):
@@ -426,7 +439,8 @@ class MainWindow(QMainWindow):
             "satellite": 2,
             "thermal":   3,
             "radiation": 4,
-            "budget":    5
+            "budget":    5,
+            "study":     6
         }
         if section in mapping:
             self.right_stack.setCurrentIndex(mapping[section])

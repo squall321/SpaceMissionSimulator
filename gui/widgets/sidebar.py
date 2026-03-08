@@ -67,6 +67,7 @@ class Sidebar(QWidget):
         ("🌡️",  "Thermal",  "thermal"),
         ("☢️",  "Radiation","radiation"),
         ("📊", "Budget",   "budget"),
+        ("📈", "Study",    "study"),
     ]
 
     def __init__(self):
