@@ -167,3 +167,12 @@ class SatelliteConfigPanel(QWidget):
 
     def get_config(self) -> dict:
         return {k: v.value() for k, v in self.inputs.items()}
+
+    def set_config(self, cfg: dict):
+        """외부에서 설정값 일괄 주입 (시나리오 패널 연동용)"""
+        for key, val in cfg.items():
+            if key in self.inputs:
+                spin = self.inputs[key].spin
+                spin.blockSignals(True)
+                spin.setValue(float(val))
+                spin.blockSignals(False)

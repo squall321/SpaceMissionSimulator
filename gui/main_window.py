@@ -26,6 +26,7 @@ from core.services.budget_radiation  import BudgetService, RadiationService, Des
 from gui.widgets.sidebar      import Sidebar
 from gui.widgets.orbit_config import OrbitConfigPanel
 from gui.widgets.satellite_config import SatelliteConfigPanel
+from gui.widgets.satellite_scenario_panel import SatelliteScenarioPanel
 from gui.widgets.dashboard    import DashboardPanel
 from gui.widgets.timeline     import TimelineWidget
 from gui.widgets.thermal_viewer import ThermalViewer
@@ -141,9 +142,9 @@ class MainWindow(QMainWindow):
         layout_orbit.addWidget(self.dashboard, stretch=1)
         self.right_stack.addWidget(page_orbit)
 
-        # -- 페이지 2: 위성 구성 --
-        self.sat_config_panel = SatelliteConfigPanel()
-        self.right_stack.addWidget(self.sat_config_panel)
+        # -- 페이지 2: 위성 시나리오 매니저 --
+        self.scenario_panel = SatelliteScenarioPanel()
+        self.right_stack.addWidget(self.scenario_panel)
 
         # -- 페이지 3: 열 해석 차트 --
         self.thermal_viewer = ThermalViewer()
@@ -232,8 +233,8 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         self.orbit_config.params_changed.connect(self.trigger_analysis)
-        # v0.4.0: 위성 설정 변경 시 3D 뷰어 실시간 업데이트
-        self.sat_config_panel.config_changed.connect(self._on_sat_config_changed)
+        # v0.5.0: 시나리오 변경 시 3D 뷰어 실시간 업데이트
+        self.scenario_panel.scenarios_changed.connect(self._on_scenarios_changed)
         self.sidebar.nav_changed.connect(self.on_nav_changed)
         self.sidebar.optimize_clicked.connect(self.show_optimization_dialog)
         self.dashboard.satellite_selected.connect(self.on_satellite_selected)
@@ -243,12 +244,12 @@ class MainWindow(QMainWindow):
         # Parametric Study 시그널
         self.parametric_panel.orbit_selected.connect(self._on_parametric_orbit)
 
-    def _on_sat_config_changed(self, cfg: dict):
-        """위성 설정 변경 → Satellite 탭 활성화 중일 때 3D 뷰어 실시간 업데이트"""
+    def _on_scenarios_changed(self, scenarios: list):
+        """시나리오 변경 → Satellite 탭 활성화 중일 때 3D 뷰어 실시간 업데이트"""
         if self.right_stack.currentIndex() == 2:  # satellite tab
             page = self.globe_view.page()
             page.runJavaScript(
-                f"window.updateSatViewer && window.updateSatViewer({json.dumps(cfg)})"
+                f"window.updateSatViewer && window.updateSatViewer({json.dumps(scenarios)})"
             )
 
     def show_comparison_dialog(self):
@@ -259,7 +260,7 @@ class MainWindow(QMainWindow):
 
     def show_optimization_dialog(self):
         """궤도 최적화 대화상자 표시"""
-        sat_config = self.sat_config_panel.get_config()
+        sat_config = self.scenario_panel.get_selected_config() or {}
         dlg = OrbitOptimizationDialog(self, sat_config=sat_config)
         dlg.result_selected.connect(self._apply_optimized_orbit)
         dlg.exec()
@@ -308,7 +309,7 @@ class MainWindow(QMainWindow):
             budget_svc=self.budget_svc,
             rad_svc=self.rad_svc,
             evaluator=self.evaluator,
-            sat_config=self.sat_config_panel.get_config(),
+            sat_config=self.scenario_panel.get_selected_config() or {},
             extra_stations=extra_stations or []
         )
         self._worker.finished.connect(self.on_analysis_done)
@@ -328,15 +329,20 @@ class MainWindow(QMainWindow):
         if not hasattr(self, 'results_history'):
             self.results_history = []
         self.results_history.append(results)
-        
-        sat_id = len(self.results_history)
-        self.dashboard.add_satellite(f"SAT-{sat_id}")
+
+        sat_id_str = f"SAT-{len(self.results_history)}"
+        self.dashboard.add_satellite(sat_id_str)
+
+        # v0.5.0: 시나리오 패널에 추가
+        orbit_summary = f"{orbit.params.altitude_km:.0f}km / {orbit.params.inclination_deg:.1f}°"
+        current_cfg   = self.scenario_panel.get_selected_config() or {}
+        self.scenario_panel.add_scenario(sat_id_str, sat_id_str, orbit_summary, current_cfg)
 
         # 대시보드 갱신
         self.dashboard.update_all(orbit, budget, rad, thermal, score)
 
         # Mission Panel 요구사항 충족도 갱신 (카메라 구경 기반 해상도 계산)
-        aperture_cm = self.sat_config_panel.get_config().get('aperture_cm', 15.0)
+        aperture_cm = (self.scenario_panel.get_selected_config() or {}).get('aperture_cm', 15.0)
         self.mission_panel.update_status(orbit, budget, aperture_cm=aperture_cm)
 
         # RECOMMEND 후 Mission 탭으로 자동 복귀
@@ -454,11 +460,11 @@ class MainWindow(QMainWindow):
         if section in mapping:
             self.right_stack.setCurrentIndex(mapping[section])
 
-        # v0.4.0: Satellite 3D Viewer show/hide
+        # v0.5.0: Satellite 3D Viewer show/hide (다중 시나리오)
         page = self.globe_view.page()
         if section == "satellite":
-            cfg = json.dumps(self.sat_config_panel.get_config())
-            page.runJavaScript(f"window.showSatViewer && window.showSatViewer({cfg})")
+            scenarios = json.dumps(self.scenario_panel.get_all_scenarios())
+            page.runJavaScript(f"window.showSatViewer && window.showSatViewer({scenarios})")
         else:
             page.runJavaScript("window.hideSatViewer && window.hideSatViewer()")
 

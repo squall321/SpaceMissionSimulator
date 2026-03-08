@@ -5,16 +5,32 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 4
+MINOR = 5
 PATCH = 0
 STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 VERSION_FULL = f"v{VERSION}-{STAGE}"
-BUILD_DATE = "2026-03-08"
+BUILD_DATE = "2026-03-09"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.5.0",
+        "date": "2026-03-09",
+        "stage": "alpha",
+        "highlights": "Multi-Satellite Scenario Manager — 궤도 횟수만큼 위성 시나리오 독립 설정",
+        "changes": [
+            ("feat", "🛰️ SatelliteScenarioPanel — 시나리오 카드 목록 + 독립 SatelliteConfigPanel"),
+            ("feat", "🎨 8종 팔레트 색상 컨드로 각 위성 구분 — ScenarioCard 클릭/삭제 시그널"),
+            ("feat", "🔮 sat_controller.js 다중 위성 — showSatViewer(scenarios[]) X축 배치"),
+            ("feat", "💡 림 라이트 하이라이트 — 선택 위성 PointLight 활성화 + 카메라 타겟 이동"),
+            ("feat", "🏷️ 캔버스 라벨 스프라이트 — 위성 이름 3D 표시"),
+            ("feat", "📊 HUD N개 시나리오 카운터 + 선택 위성 상세 정보"),
+            ("feat", "🔍 레이캐스터 클릭 선택 — 3D 위성 클릭 → 해당 시나리오 강조"),
+            ("feat", "➕ 분석 완료 시 시나리오 자동 추가 — on_analysis_done → add_scenario()"),
+        ],
+    },
     {
         "version": "0.4.0",
         "date": "2026-03-08",
