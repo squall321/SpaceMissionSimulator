@@ -19,14 +19,12 @@ CHANGELOG = [
         "version": "0.11.0",
         "date": "2026-03-08",
         "stage": "alpha",
-        "highlights": "IPSAP/DIAMOND FEM 어댑터 — 구조/진동/열응력 해석 파이프라인",
+        "highlights": "내장 구조 해석기 — 고유진동/준정적 응력/Miles 랜덤/열응력 예비 설계 평가",
         "changes": [
-            ("feat", "🏗️ IpsapAdapter — IPSAP/NASTRAN BDF 생성+실행+파싱 파이프라인 (Mock/실행 모드 자동 전환)"),
-            ("feat", "📐 IpsapInputGenerator — StructuralParams → NASTRAN Bulk Data (.bdf) 자동 생성 (CQUAD4 박스 모델)"),
-            ("feat", "📊 IpsapResultReader — .f06 파싱 (EIGRL 고유값+CQUAD4 응력+DISP)"),
-            ("feat", "🔬 Mock 해석 엔진 — Euler-Bernoulli 1차 고유진동+준정적 응력+Miles 랜덤+열응력"),
+            ("feat", "🏗️ StructuralAnalyzer — 내장 간이 구조 해석기 (Euler-Bernoulli f1 + 준정적 VM 응력 + Miles 3σ + 열응력)"),
             ("feat", "🧮 StructuralResult — 고유진동/응력/MarginOfSafety/열응력/3σ 랜덤 통합 결과"),
-            ("feat", "📚 core/domain/structural.py — StructuralParams/LoadCase/ModeShape/NodeResult/MarginOfSafety 도메인 모델"),
+            ("feat", "📚 core/domain/structural.py — StructuralParams/ModeShape/NodeResult/MarginOfSafety/MATERIALS 5종 도메인 모델"),
+            ("note", "ℹ️ 외부 FEM 솔버(NASTRAN/IPSAP) 연동은 추후 확장 예정 — 현재 내장 공식 전용"),
         ],
     },
     {
