@@ -6,7 +6,7 @@ SpaceD-AADE Platform — Version Module
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
 MINOR = 2
-PATCH = 2
+PATCH = 3
 STAGE = "alpha"   # alpha / beta / rc / release
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
@@ -15,6 +15,19 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.2.3",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "Coverage Target — 국가/지역 선택 + 위도 기반 경사각 계산",
+        "changes": [
+            ("feat", "🌏 CoverageSection: 지역·국가·전지구 3-way 토글 + 국가/권역 드롭다운"),
+            ("feat", "🗺️ 지역 10개 (한반도 권역·동아시아·유럽 등) / 국가 16개 (대한민국·미국·중국 등) 등록"),
+            ("feat", "📐 경사각 자동 계산: SSO → 고도 기반 정밀식, 비SSO → 대상 최대위도 + 5° 규칙"),
+            ("feat", "🌐 전지구 선택 시 콤보박스 자동 숨김"),
+            ("fix",  "🔧 CoverageToggle → CoverageSection 교체 (하위 호환 value() 유지)"),
+        ],
+    },
     {
         "version": "0.2.2",
         "date": "2026-03-08",

@@ -9,7 +9,7 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QSlider, QGridLayout, QFrame, QScrollArea, QButtonGroup,
-    QSizePolicy, QSpacerItem
+    QSizePolicy, QSpacerItem, QComboBox
 )
 from PySide6.QtCore import Signal, Qt, QPropertyAnimation, QEasingCurve, QRect
 from PySide6.QtGui  import QFont, QPainter, QColor, QPen, QBrush, QLinearGradient, QRadialGradient, QPainterPath
@@ -375,29 +375,55 @@ class MissionTypeCard(QPushButton):
 
 
 # ══════════════════════════════════════════════════════════════════
-#  CoverageToggle
+#  커버리지 국가/지역 데이터  (key → [(표시명, lat_min, lat_max), ...])
 # ══════════════════════════════════════════════════════════════════
-class CoverageToggle(QWidget):
-    changed = Signal(str)
-    OPTIONS = [("regional", "지역 (Regional)"), ("national", "국가 (National)"), ("global", "전지구 (Global)")]
+COVERAGE_TARGETS: dict[str, list[tuple[str, float, float]]] = {
+    "regional": [
+        ("한반도 권역",   33.0,  43.0),
+        ("동아시아",      20.0,  50.0),
+        ("동남아시아",     5.0,  20.0),
+        ("남아시아",       8.0,  36.0),
+        ("중동",          20.0,  37.0),
+        ("유럽",          36.0,  70.0),
+        ("북미",          25.0,  50.0),
+        ("남미",         -55.0,  10.0),
+        ("아프리카",     -35.0,  37.0),
+        ("오세아니아",   -44.0,  -10.0),
+    ],
+    "national": [
+        ("대한민국 🇰🇷",  34.0,  38.5),
+        ("일본 🇯🇵",      31.0,  45.5),
+        ("중국 🇨🇳",      18.0,  53.5),
+        ("미국 🇺🇸",      25.0,  49.0),
+        ("러시아 🇷🇺",    50.0,  72.0),
+        ("인도 🇮🇳",       8.0,  36.0),
+        ("호주 🇦🇺",     -44.0, -10.0),
+        ("브라질 🇧🇷",   -33.0,   5.0),
+        ("독일 🇩🇪",      47.5,  55.0),
+        ("영국 🇬🇧",      50.0,  59.0),
+        ("프랑스 🇫🇷",    42.5,  51.0),
+        ("이스라엘 🇮🇱",  29.5,  33.5),
+        ("UAE 🇦🇪",       22.5,  26.0),
+        ("사우디 🇸🇦",    16.5,  32.0),
+        ("싱가포르 🇸🇬",   1.1,   1.5),
+        ("캐나다 🇨🇦",    42.0,  83.0),
+    ],
+    "global":  [],
+}
 
-    def __init__(self):
-        super().__init__()
-        self._current = "regional"
-        lay = QHBoxLayout(self)
-        lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(4)
-        self._btns: dict[str, QPushButton] = {}
-        for key, label in self.OPTIONS:
-            btn = QPushButton(label)
-            btn.setCheckable(True)
-            btn.setFixedHeight(30)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, k=key: self._select(k))
-            self._btns[key] = btn
-            lay.addWidget(btn)
-        self._select("regional")
 
+# ══════════════════════════════════════════════════════════════════
+#  CoverageSection  (3-way toggle + 국가/지역 드롭다운)
+# ══════════════════════════════════════════════════════════════════
+class CoverageSection(QWidget):
+    """커버리지 타입 선택 + 국가/지역 드롭다운이 통합된 위젯"""
+    changed = Signal(str)   # 'regional' | 'national' | 'global'
+
+    _TOGGLE_OPTIONS = [
+        ("regional", "지역"),
+        ("national", "국가"),
+        ("global",   "전지구"),
+    ]
     _INACTIVE = (
         "QPushButton {"
         "  background: rgba(20,38,56,0.75);"
@@ -419,14 +445,109 @@ class CoverageToggle(QWidget):
         "}"
     )
 
-    def _select(self, key: str):
-        self._current = key
+    def __init__(self):
+        super().__init__()
+        self._cov_type = "regional"
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(6)
+
+        # ── 3-way 토글 ─────────────────────────────────────────
+        toggle_row = QHBoxLayout()
+        toggle_row.setContentsMargins(0, 0, 0, 0)
+        toggle_row.setSpacing(4)
+        self._btns: dict[str, QPushButton] = {}
+        for key, label in self._TOGGLE_OPTIONS:
+            btn = QPushButton(label)
+            btn.setCheckable(True)
+            btn.setFixedHeight(30)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, k=key: self._select_type(k))
+            self._btns[key] = btn
+            toggle_row.addWidget(btn)
+        root.addLayout(toggle_row)
+
+        # ── 대상 선택 드롭다운 ──────────────────────────────────
+        self._combo = QComboBox()
+        self._combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._combo.setFixedHeight(30)
+        self._combo.setStyleSheet("""
+        QComboBox {
+            background: rgba(14,30,48,0.90);
+            border: 1px solid rgba(65,100,130,0.70);
+            border-radius: 5px;
+            color: #b8d8f0;
+            font-size: 10px; font-weight: 700;
+            padding: 0 8px;
+        }
+        QComboBox:hover {
+            border: 1px solid rgba(0,210,255,0.60);
+            color: #d8f0ff;
+        }
+        QComboBox::drop-down { border: none; width: 22px; }
+        QComboBox::down-arrow {
+            image: none;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid rgba(0,200,255,0.80);
+            margin-right: 6px;
+        }
+        QComboBox QAbstractItemView {
+            background: #0a1e30;
+            border: 1px solid rgba(0,180,240,0.45);
+            color: #b8d8f0;
+            selection-background-color: rgba(0,150,210,0.45);
+            selection-color: #ffffff;
+            font-size: 10px;
+            padding: 2px;
+            outline: none;
+        }
+        """)
+        root.addWidget(self._combo)
+
+        # 초기화
+        self._select_type("regional")
+
+    def _select_type(self, key: str):
+        self._cov_type = key
         for k, btn in self._btns.items():
             btn.setStyleSheet(self._ACTIVE if k == key else self._INACTIVE)
+
+        targets = COVERAGE_TARGETS.get(key, [])
+        self._combo.blockSignals(True)
+        self._combo.clear()
+        if targets:
+            for name, *_ in targets:
+                self._combo.addItem(name)
+            self._combo.setVisible(True)
+        else:
+            self._combo.addItem("전지구 커버리지")
+            self._combo.setVisible(False)
+        self._combo.blockSignals(False)
+
         self.changed.emit(key)
 
+    # ── 공개 API ────────────────────────────────────────────────
     def value(self) -> str:
-        return self._current
+        """'regional' | 'national' | 'global'"""
+        return self._cov_type
+
+    def target_lat_range(self) -> tuple[float, float]:
+        """선택된 지역의 위도 범위 (min_lat, max_lat). global → (0, 90)"""
+        targets = COVERAGE_TARGETS.get(self._cov_type, [])
+        if not targets:
+            return (0.0, 90.0)
+        idx = self._combo.currentIndex()
+        if idx < 0 or idx >= len(targets):
+            return (0.0, 90.0)
+        _, lat_min, lat_max = targets[idx]
+        return (lat_min, lat_max)
+
+    def selected_target_name(self) -> str:
+        if self._cov_type == "global":
+            return "전지구"
+        return self._combo.currentText()
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -564,7 +685,7 @@ class MissionPanel(QWidget):
 
         # ── 커버리지 ──────────────────────────────────────────
         lay.addWidget(self._sec("COVERAGE TARGET"))
-        self.coverage = CoverageToggle()
+        self.coverage = CoverageSection()
         lay.addWidget(self.coverage)
 
         # ── 추천 버튼 ─────────────────────────────────────────
@@ -661,23 +782,40 @@ class MissionPanel(QWidget):
             self.s_contact.set_value(min(float(ct), 120.0))
 
     def _on_recommend(self):
-        info = next(m for m in MISSION_TYPES if m["key"] == self._selected_type)
-        hint = info["orbit_hint"]
+        info   = next(m for m in MISSION_TYPES if m["key"] == self._selected_type)
+        hint   = info["orbit_hint"]
         rev_hr = self.s_revisit.value()
         cov    = self.coverage.value()
+        o_type = hint["type"]
 
+        # ── 고도 추천 (재방문 주기에 따라) ──────────────────────
         alt_lo, alt_hi = hint["alt"]
         alt = (alt_lo if rev_hr <= 3
                else (alt_lo + alt_hi) / 2 if rev_hr <= 12
                else alt_hi)
 
+        # ── 경사각 추천 (위도 기반) ──────────────────────────────
         inc_lo, inc_hi = hint["inc"]
-        inc = (inc_hi if cov == "global"
-               else (inc_lo + inc_hi) / 2 if cov == "national"
-               else inc_lo)
+        if cov == "global":
+            # SSO 계열은 항상 hint_hi; 적도계열은 최대 inclination
+            inc = inc_hi
+        else:
+            lat_min, lat_max = self.coverage.target_lat_range()
+            target_lat = abs(lat_max)   # 커버해야 할 최대 위도
 
-        o_type = hint["type"]
-        raan   = 90.0 if o_type == "DDSSO" else 0.0
+            if o_type in ("SSO", "DDSSO"):
+                # SSO: LTAN 계산 → 경사각 = 97~99° 고정, 고도에 따라 미세 조정
+                # i ≈ 90.0 + acos(-3/2 * J2 * Re² / (a²) * ...) → 근사식:
+                # i_sso ≈ 97.8 + 0.0016 * (alt - 500)
+                inc = 97.8 + 0.0016 * (alt - 500.0)
+                inc = max(inc_lo, min(inc_hi, inc))
+            else:
+                # 비 SSO: 경사각 ≥ target_lat (커버리지 확보)
+                # 지구관측/통신: 최적값 = max(hint_lo, target_lat + 5°)
+                inc_from_lat = target_lat + 5.0
+                inc = max(inc_lo, min(inc_hi, inc_from_lat))
+
+        raan = 90.0 if o_type == "DDSSO" else 0.0
 
         self.orbit_recommended.emit(OrbitParams(
             altitude_km     = round(alt),
