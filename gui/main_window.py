@@ -38,6 +38,8 @@ from gui.widgets.comparison_dialog import ComparisonDialog
 from gui.widgets.optimization_dialog import OrbitOptimizationDialog
 from gui.widgets.mission_panel import MissionPanel
 from gui.widgets.changelog_dialog import ChangelogDialog
+from gui.widgets.log_panel import LogPanel
+from gui.widgets.settings_dialog import SettingsDialog, load_settings
 import version as V
 
 BASE_DIR = Path(__file__).parent
@@ -132,6 +134,13 @@ class MainWindow(QMainWindow):
         # 궤도 타임라인
         self.timeline = TimelineWidget()
         center_layout.addWidget(self.timeline, stretch=1)
+
+        # 분석 로그 패널
+        cfg = load_settings()
+        self.log_panel = LogPanel(max_lines=cfg["ui"]["log_max_lines"])
+        if not cfg["ui"]["show_log_panel"]:
+            self.log_panel.toggle()   # 접힌 상태로 시작
+        center_layout.addWidget(self.log_panel)
 
         # 3. 우측 패널 (QStackedWidget)
         self.right_stack = QStackedWidget()
@@ -248,12 +257,15 @@ class MainWindow(QMainWindow):
         self.scenario_panel.compare_requested.connect(self.show_comparison_dialog)
         self.sidebar.nav_changed.connect(self.on_nav_changed)
         self.sidebar.optimize_clicked.connect(self.show_optimization_dialog)
+        self.sidebar.settings_clicked.connect(self.show_settings_dialog)     # v0.6.0
         self.dashboard.satellite_selected.connect(self.on_satellite_selected)
         self.dashboard.compare_requested.connect(self.show_comparison_dialog)
         # Mission Panel 시그널
         self.mission_panel.orbit_recommended.connect(self._apply_recommended_orbit)
         # Parametric Study 시그널
         self.parametric_panel.orbit_selected.connect(self._on_parametric_orbit)
+        # v0.6.0: GMAT 상태 배지 초기화
+        self._init_gmat_status()
 
     def _on_scenarios_changed(self, scenarios: list):
         """시나리오 변경 → Satellite 탭 활성화 중일 때 3D 뷰어 실시간 업데이트"""
@@ -303,6 +315,38 @@ class MainWindow(QMainWindow):
         dlg = ChangelogDialog(self)
         dlg.exec()
 
+    def show_settings_dialog(self):
+        """v0.6.0 설정 다이얼로그"""
+        dlg = SettingsDialog(self)
+        dlg.settings_changed.connect(self._on_settings_changed)
+        dlg.exec()
+
+    def _on_settings_changed(self, cfg: dict):
+        self.log_panel.set_max_lines(cfg["ui"]["log_max_lines"])
+        show = cfg["ui"]["show_log_panel"]
+        if show and not self.log_panel._expanded:
+            self.log_panel.toggle()
+        elif not show and self.log_panel._expanded:
+            self.log_panel.toggle()
+        self.log_panel.log("설정 저장 완료", "success")
+
+    def _init_gmat_status(self):
+        """앱 시작 시 GMAT 가용 여부 확인 → 로그 패널 배지 갱신"""
+        try:
+            from adapters.gmat.gmat_adapter import GmatAdapter
+            adapter = GmatAdapter()
+            console = adapter.is_console_available()
+            avail   = adapter.is_available()
+            self.log_panel.set_gmat_status(avail, console)
+            if console:
+                self.log_panel.log(f"GMAT 준비: GmatConsole.exe  ({adapter.gmat_console})", "gmat")
+            elif avail:
+                self.log_panel.log(f"GMAT 준비: GMAT.exe  ({adapter.gmat_exe})", "warn")
+            else:
+                self.log_panel.log("GMAT 없음 — 내장 해석 엔진으로 동작", "warn")
+        except Exception as e:
+            self.log_panel.log(f"GMAT 상태 확인 실패: {e}", "error")
+
     # ── 분석 실행 ──────────────────────────────────────────────
     def trigger_analysis(self):
         orbit_params = self.orbit_config.get_params()
@@ -312,6 +356,12 @@ class MainWindow(QMainWindow):
         self.status_label.setText("  🔄  Analyzing orbit...")
         self.progress.setVisible(True)
         self.progress.setRange(0, 0)  # 무한 진행
+
+        self.log_panel.log(
+            f"분석 시작 — h={orbit_params.altitude_km:.0f}km  "
+            f"i={orbit_params.inclination_deg:.1f}°  "
+            f"RAAN={orbit_params.raan_deg:.1f}°", "stage"
+        )
 
         # 분석 스레드 생성
         self._worker = AnalysisWorker(
@@ -326,6 +376,7 @@ class MainWindow(QMainWindow):
         )
         self._worker.finished.connect(self.on_analysis_done)
         self._worker.progress_msg.connect(lambda m: self.status_label.setText(f"  {m}"))
+        self._worker.log_msg.connect(self.log_panel.log)       # v0.6.0
         self._worker.start()
 
     def on_analysis_done(self, results: dict):

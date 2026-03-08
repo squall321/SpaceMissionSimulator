@@ -5,8 +5,8 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 5
-PATCH = 1
+MINOR = 6
+PATCH = 0
 STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
@@ -15,6 +15,35 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.6.0",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "Settings Dialog · Analysis Log Panel · GMAT 상태 배지",
+        "changes": [
+            ("feat", "⚙️ Settings Dialog — GMAT 경로/사용여부, 해석 기본값, 시뮬레이션 설정"),
+            ("feat", "📋 Analysis Log Panel — 접기/펼치기, 파이프라인 단계별 컬러 로그"),
+            ("feat", "⬤ GMAT 상태 배지 — Console/GUI/N/A 실시간 표시"),
+            ("feat", "📊 AnalysisWorker 상세 로그 — Stage별 결과(주기·온도·점수·TID) emit"),
+            ("feat", "🚀 Sidebar ⚙ Settings 버튼 → SettingsDialog 오픈"),
+            ("feat", "💾 config/settings.json 영속 설정 저장"),
+        ],
+    },
+    {
+        "version": "0.5.2",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "이름 편집 · 3D↔카드 동기화 · 비교 모드 · Export Excel/PDF",
+        "changes": [
+            ("feat", "✏️ ScenarioCard 더블클릭 인라인 이름 편집 (QLineEdit 오버레이)"),
+            ("feat", "🔗 3D 위성 클릭 → Python QWebChannel → ScenarioCard 하이라이트"),
+            ("feat", "📊 ComparisonDialog 시나리오 이름 열 헤더 적용"),
+            ("feat", "🔀 비교 버튼 → ComparisonDialog 시나리오 이름 전달"),
+            ("feat", "📊 Export Excel (openpyxl, 다크테마 스타일, 17개 지표)"),
+            ("feat", "📄 Export PDF (QPrinter + QTextDocument HTML→PDF)"),
+            ("feat", "🗂️ gui/utils/export_service.py — export_excel / export_pdf"),
+        ],
+    },
     {
         "version": "0.5.1",
         "date": "2026-03-08",

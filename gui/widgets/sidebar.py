@@ -57,8 +57,9 @@ class NavButton(QPushButton):
 
 
 class Sidebar(QWidget):
-    nav_changed = Signal(str)
-    optimize_clicked = Signal()  # 최적화 버튼 시그널
+    nav_changed      = Signal(str)
+    optimize_clicked = Signal()   # 최적화 버튼 시그널
+    settings_clicked = Signal()   # 설정 버튼 시그널
 
     NAV_ITEMS = [
         ("🎯", "Mission",  "mission"),
@@ -108,6 +109,7 @@ class Sidebar(QWidget):
         
         # 설정 버튼
         settings_btn = NavButton("⚙️", "Settings", "settings")
+        settings_btn.clicked.connect(self._on_settings_click)
         layout.addWidget(settings_btn)
 
         # 버전 배지
@@ -140,3 +142,6 @@ class Sidebar(QWidget):
 
     def _on_optimize_click(self):
         self.optimize_clicked.emit()
+
+    def _on_settings_click(self):
+        self.settings_clicked.emit()
