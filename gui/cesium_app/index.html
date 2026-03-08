@@ -397,12 +397,20 @@
         style="margin-top:10px; width:100%; color:#ff4d6d; border-color:#ff4d6d;">전체 궤도 삭제 (초기화)</button>
     </div>
 
-    <!-- 범례 -->
+    <!-- 범례 (v0.10.0 업데이트) -->
     <div id="legend">
-      <div class="row"><span class="dot" style="background:#00dcff"></span>Sunlight</div>
+      <div style="font-size:9px;color:#4a6a7a;letter-spacing:1px;margin-bottom:4px;">◈ ORBIT STATE</div>
+      <div class="row"><span class="dot" style="background:#00dcff"></span>Sunlight (SAT-1)</div>
+      <div class="row"><span class="dot" style="background:#ffa040"></span>Sunlight (SAT-2)</div>
       <div class="row"><span class="dot" style="background:#ff4d6d"></span>Eclipse</div>
       <div class="row"><span class="dot" style="background:#39ff96"></span>GS Contact</div>
-      <div class="row" style="margin-top:6px"><span class="dot" style="background:#ffa040"></span>Ground Station</div>
+      <div class="row" style="margin-top:5px;border-top:1px solid rgba(0,220,255,0.1);padding-top:5px;">
+        <span class="dot" style="background:#ffa040;opacity:0.8"></span>Ground Station
+      </div>
+      <div class="row">
+        <span class="dot" style="background:#ffa040;opacity:0.2;border:1px solid rgba(255,160,64,0.5)"></span>
+        FOV Coverage (10° mask)
+      </div>
     </div>
   </div>
 
@@ -417,6 +425,32 @@
     let orbitNum = 1;
     let satelliteCount = 0;
     let satellitesList = [];
+
+    // v0.10.0: 위성별 궤도 색상 팔레트 (eclipse=#ff4d6d, contact=#39ff96 와 혼동 방지)
+    const SAT_COLORS = [
+      [0, 220, 255],    // #00dcff  cyan
+      [255, 160, 64],   // #ffa040  amber
+      [180, 100, 255],  // #b464ff  purple
+      [255, 220, 0],    // #ffdc00  yellow
+      [100, 200, 255],  // #64c8ff  sky-blue
+      [255, 120, 200],  // #ff78c8  pink
+      [160, 255, 100],  // #a0ff64  lime
+      [255, 80,  80],   // #ff5050  coral
+    ];
+
+    // v0.10.0: 현재 궤도 고도 (지상국 FOV 반경 계산용)
+    window._currentAltitudeKm = 550;
+
+    // v0.10.0: 지상국 FOV 커버리지 반경 계산 [m]
+    function calcFovRadiusM(altKm, minElevDeg) {
+      const R = 6371000;
+      const h = altKm * 1000;
+      const elevRad = minElevDeg * Math.PI / 180;
+      const sinVal = Math.min(1.0, R * Math.cos(elevRad) / (R + h));
+      const nadirRad = Math.asin(sinVal);
+      const centralAngle = Math.PI / 2 - elevRad - nadirRad;
+      return Math.max(0, R * centralAngle);
+    }
 
     // Cesium Ion 토큰 (무료 개인용)
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMDA1LTQyMjctODc4OS1lYjFlNDA1OGUzYmYiLCJpZCI6MjYxOTcsInNjb3BlcyI6WyJhc2wiXSwiaWF0IjoxNTg3NDA4NTM5fQ.A4FJzxBo-IpCpkBETrHAH-vZ_w0GnAMxPINS8LfBxrQ';
@@ -506,8 +540,11 @@
       satellitesList.forEach(s => {
         const item = document.createElement('div');
         item.className = 'sat-item';
+        const rgb = s.color ? `rgb(${s.color.join(',')})` : '#00dcff';  // v0.10.0
         item.innerHTML = `
-          <span class="sat-name" onclick="focusSatellite('${s.id}')">🛰 ${s.name}</span>
+          <span class="sat-name" onclick="focusSatellite('${s.id}')">
+            <span style="color:${rgb};font-size:14px;">●</span> ${s.name}
+          </span>
           <div>
             <button onclick="toggleSatellite('${s.id}')">표시/숨김</button>
             <button onclick="removeSatellite('${s.id}')" style="color:#ff4d6d; border-color:transparent;">X</button>
@@ -627,9 +664,14 @@
         satelliteCount++;
         const satId = 'sat_' + satelliteCount;
         const satName = 'SAT-' + satelliteCount;
+        const satColor = SAT_COLORS[(satelliteCount - 1) % SAT_COLORS.length];  // v0.10.0
+
+        // v0.10.0: 궤도 고도 저장 (FOV 계산)
+        window._currentAltitudeKm = data.altitude_min && data.altitude_min > 0
+          ? data.altitude_min : (data.altitude_max || 550);
 
         // CZML 생성
-        const czml = buildCZML(data, epoch, satId, satName);
+        const czml = buildCZML(data, epoch, satId, satName, satColor);
         const ds = new Cesium.CzmlDataSource();
         ds.load(czml).then(function () {
           viewer.dataSources.add(ds);
@@ -638,7 +680,8 @@
           currentOrbitData = data;
 
           satellitesList.push({
-            id: satId, name: satName, dataSource: ds, entity: sat, data: data
+            id: satId, name: satName, dataSource: ds, entity: sat, data: data,
+            color: satColor   // v0.10.0
           });
           updateSatManagerUI();
 
@@ -685,7 +728,8 @@
       } catch (e) { console.error('updateOrbitData error:', e); }
     }
 
-    function buildCZML(data, epoch, satId, satName) {
+    function buildCZML(data, epoch, satId, satName, satColor) {
+      satColor = satColor || [0, 220, 255];  // fallback: cyan
       const times = data.times;  // 초 배열
       const xs = data.x;  // km (ECI)
       const ys = data.y;
@@ -709,9 +753,9 @@
       let colorArray = [];
       for (let i = 0; i < times.length; i++) {
         let c;
-        if (contactFlags[i]) c = [57, 255, 150];  // green
-        else if (eclipseFlags[i]) c = [255, 77, 109];  // red
-        else c = [0, 255, 255];  // cyan
+        if (contactFlags[i]) c = [57, 255, 150];   // green (GS Contact 고정)
+        else if (eclipseFlags[i]) c = [255, 77, 109];  // red  (Eclipse 고정)
+        else c = satColor;  // v0.10.0: 위성 고유 색상
 
         colorArray.push(times[i]);
         colorArray.push(c[0], c[1], c[2], 255);
@@ -740,6 +784,9 @@
         }
         segments.push(currentSeg);
       }
+
+      // v0.10.0: 위성 고유 색상으로 path material 설정
+      const satColorAlpha = [...satColor, 200];
 
       const czml = [
         {
@@ -776,13 +823,13 @@
             "leadTime": 0,
             "trailTime": data.period_min ? data.period_min * 60 * 0.5 : 3000,
             "material": {
-              "solidColor": { "color": { "rgba": [255, 255, 255, 200] } }
+              "solidColor": { "color": { "rgba": satColorAlpha } }  // v0.10.0: 위성 고유 색상
             }
           },
           "label": {
             "text": satName,
             "font": "13px Consolas",
-            "fillColor": { "rgba": [0, 255, 255, 255] },
+            "fillColor": { "rgba": [...satColor, 255] },  // v0.10.0
             "outlineColor": { "rgba": [0, 0, 0, 255] },
             "outlineWidth": 3,
             "style": "FILL_AND_OUTLINE",
@@ -794,9 +841,10 @@
 
       // 정적 폴리라인 궤적들 이어붙이기
       segments.forEach((seg, idx) => {
-        let rgba = [0, 220, 255, 100];  // sunlight (opacity slightly reduced for multi-sat overlap limits)
-        if (seg.state === 'contact') rgba = [57, 255, 150, 180]; // GS Contact
-        else if (seg.state === 'eclipse') rgba = [255, 77, 109, 180]; // Eclipse
+        let rgba;
+        if (seg.state === 'contact')      rgba = [57, 255, 150, 180];  // GS Contact 고정 녹색
+        else if (seg.state === 'eclipse') rgba = [255, 77, 109, 180];  // Eclipse 고정 빨강
+        else rgba = [...satColor, 80];  // v0.10.0: 위성 고유 색상 (궤도선 약간 투명)
 
         czml.push({
           "id": "orbit_seg_" + satId + "_" + idx,
@@ -816,11 +864,16 @@
     function updateGroundStations(jsonStr) {
       try {
         const stations = JSON.parse(jsonStr);
-        // 기존 지상국 제거
+        // 기존 지상국 + FOV 제거
         for (const e of groundStationEntities) viewer.entities.remove(e);
         groundStationEntities = [];
 
+        // v0.10.0: 현재 궤도 고도 기반 FOV 반경 (최소 앙각 10°)
+        const altKm = window._currentAltitudeKm || 550;
+        const fovRadius = calcFovRadiusM(altKm, 10.0);
+
         for (const gs of stations) {
+          // 아이콘 + 라벨
           const e = viewer.entities.add({
             name: gs.name,
             position: Cesium.Cartesian3.fromDegrees(gs.lon, gs.lat, gs.alt || 0),
@@ -841,6 +894,23 @@
             }
           });
           groundStationEntities.push(e);
+
+          // v0.10.0: FOV 커버리지 원 (10° 앙각 마스크)
+          const fovEnt = viewer.entities.add({
+            name: gs.name + '_fov',
+            position: Cesium.Cartesian3.fromDegrees(gs.lon, gs.lat, 0),
+            ellipse: {
+              semiMajorAxis: fovRadius,
+              semiMinorAxis: fovRadius,
+              material: Cesium.Color.fromCssColorString('#ffa040').withAlpha(0.07),
+              outline: true,
+              outlineColor: Cesium.Color.fromCssColorString('#ffa040').withAlpha(0.45),
+              outlineWidth: 1.5,
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              classificationType: Cesium.ClassificationType.TERRAIN,
+            }
+          });
+          groundStationEntities.push(fovEnt);
         }
       } catch (e) { console.error('updateGroundStations:', e); }
     }

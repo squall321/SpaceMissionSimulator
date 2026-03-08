@@ -5,7 +5,7 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 9
+MINOR = 10
 PATCH = 0
 STAGE = "alpha"
 
@@ -15,6 +15,20 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.10.0",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "CesiumJS 멀티위성 CZML — 위성별 궤도 색상 + 지상국 FOV 콜레진로 원",
+        "changes": [
+            ("feat", "🌈 SAT_COLORS 팔레트 — 위성별 고유 색상 (cyan/amber/purple/yellow/sky-blue/pink/lime/coral 8종)"),
+            ("feat", "📍 지상국 FOV 콜레진로 원 — 10° 앙각 마스크 기반 커버리지 영역 시각화"),
+            ("feat", "📊 궤도선 세그먼트 색상 — 일조구간은 위성별 고유색, 일식/접속은 고정색 (red/green) 유지"),
+            ("feat", "📍 위성 매니저 패널 컈러 도트 — 위성별 할당 색상 표시"),
+            ("feat", "📍 calcFovRadiusM() — 고도+최소앙각→지상 커버리지 반경 [m] 관측 수식"),
+            ("feat", "📍 범례 업데이트 — 위성 색상 + FOV Coverage 항목 추가"),
+        ],
+    },
     {
         "version": "0.9.0",
         "date": "2026-03-08",
