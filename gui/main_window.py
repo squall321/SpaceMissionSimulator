@@ -254,11 +254,15 @@ class MainWindow(QMainWindow):
         self.run_analysis(orbit_params)
 
     def _apply_recommended_orbit(self, orbit_params: OrbitParams):
-        """Mission Panel 추천 궤도 → Orbit 패널 적용 + 분석 실행"""
+        """Mission Panel 추천 궤도 → 커버리지 지상국 추출 + 분석 실행"""
         self.orbit_config.set_params(orbit_params)
-        # Orbit 탭으로 자동 전환해서 사용자가 결과를 바로 확인
+        # 커버리지 선택 지상국 추출
+        cov_gs = self.mission_panel.get_coverage_ground_station()
+        self._coverage_stations = [cov_gs] if cov_gs else []
+        # 분석 완료 후 Mission 탭으로 복귀 플래그
+        self._from_mission_recommend = True
         self.sidebar.select_section("orbit")
-        self.run_analysis(orbit_params)
+        self.run_analysis(orbit_params, extra_stations=self._coverage_stations)
 
     def _show_changelog(self):
         dlg = ChangelogDialog(self)
@@ -269,7 +273,7 @@ class MainWindow(QMainWindow):
         orbit_params = self.orbit_config.get_params()
         self.run_analysis(orbit_params)
 
-    def run_analysis(self, orbit_params: OrbitParams):
+    def run_analysis(self, orbit_params: OrbitParams, extra_stations: list = None):
         self.status_label.setText("  🔄  Analyzing orbit...")
         self.progress.setVisible(True)
         self.progress.setRange(0, 0)  # 무한 진행
@@ -282,7 +286,8 @@ class MainWindow(QMainWindow):
             budget_svc=self.budget_svc,
             rad_svc=self.rad_svc,
             evaluator=self.evaluator,
-            sat_config=self.sat_config_panel.get_config()
+            sat_config=self.sat_config_panel.get_config(),
+            extra_stations=extra_stations or []
         )
         self._worker.finished.connect(self.on_analysis_done)
         self._worker.progress_msg.connect(lambda m: self.status_label.setText(f"  {m}"))
@@ -308,8 +313,14 @@ class MainWindow(QMainWindow):
         # 대시보드 갱신
         self.dashboard.update_all(orbit, budget, rad, thermal, score)
 
-        # Mission Panel 요구사항 충족도 갱신
-        self.mission_panel.update_status(orbit, budget)
+        # Mission Panel 요구사항 충족도 갱신 (카메라 구경 기반 해상도 계산)
+        aperture_cm = self.sat_config_panel.get_config().get('aperture_cm', 15.0)
+        self.mission_panel.update_status(orbit, budget, aperture_cm=aperture_cm)
+
+        # RECOMMEND 후 Mission 탭으로 자동 복귀
+        if getattr(self, '_from_mission_recommend', False):
+            self._from_mission_recommend = False
+            self.sidebar.select_section("mission")
 
         # 타임라인 갱신
         self.timeline.update_timeline(orbit)
@@ -323,10 +334,12 @@ class MainWindow(QMainWindow):
         orbit_dict = self._orbit_to_dict(orbit, budget)
         self.bridge.push_orbit(orbit_dict)
 
-        # 지상국 전송
+        # 지상국 전송 (커버리지 선택 지상국 포함)
+        extra_gs = getattr(self, '_coverage_stations', [])
+        all_gs = list(MissionAnalysisService.DEFAULT_STATIONS) + extra_gs
         stations = [
             {"name": gs.name, "lat": gs.latitude_deg, "lon": gs.longitude_deg, "alt": gs.altitude_m}
-            for gs in MissionAnalysisService.DEFAULT_STATIONS
+            for gs in all_gs
         ]
         self.bridge.push_stations(stations)
 

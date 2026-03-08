@@ -17,7 +17,7 @@ from PySide6.QtGui  import QFont, QPainter, QColor, QPen, QBrush, QLinearGradien
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from core.domain.orbit import OrbitParams
+from core.domain.orbit import OrbitParams, GroundStation
 
 
 # ── 데이터 클래스 ─────────────────────────────────────────────────
@@ -377,36 +377,37 @@ class MissionTypeCard(QPushButton):
 # ══════════════════════════════════════════════════════════════════
 #  커버리지 국가/지역 데이터  (key → [(표시명, lat_min, lat_max), ...])
 # ══════════════════════════════════════════════════════════════════
-COVERAGE_TARGETS: dict[str, list[tuple[str, float, float]]] = {
+# (name, center_lat, center_lon, lat_min, lat_max)
+COVERAGE_TARGETS: dict[str, list[tuple]] = {
     "regional": [
-        ("한반도 권역",   33.0,  43.0),
-        ("동아시아",      20.0,  50.0),
-        ("동남아시아",     5.0,  20.0),
-        ("남아시아",       8.0,  36.0),
-        ("중동",          20.0,  37.0),
-        ("유럽",          36.0,  70.0),
-        ("북미",          25.0,  50.0),
-        ("남미",         -55.0,  10.0),
-        ("아프리카",     -35.0,  37.0),
-        ("오세아니아",   -44.0,  -10.0),
+        ("한반도 권역",   37.5,  127.0,  33.0,  43.0),
+        ("동아시아",      35.0,  120.0,  20.0,  50.0),
+        ("동남아시아",    10.0,  108.0,   5.0,  20.0),
+        ("남아시아",      20.0,   78.0,   8.0,  36.0),
+        ("중동",          28.0,   45.0,  20.0,  37.0),
+        ("유럽",          50.0,   15.0,  36.0,  70.0),
+        ("북미",          38.0,  -95.0,  25.0,  50.0),
+        ("남미",         -15.0,  -55.0, -55.0,  10.0),
+        ("아프리카",       0.0,   20.0, -35.0,  37.0),
+        ("오세아니아",   -25.0,  135.0, -44.0, -10.0),
     ],
     "national": [
-        ("대한민국 🇰🇷",  34.0,  38.5),
-        ("일본 🇯🇵",      31.0,  45.5),
-        ("중국 🇨🇳",      18.0,  53.5),
-        ("미국 🇺🇸",      25.0,  49.0),
-        ("러시아 🇷🇺",    50.0,  72.0),
-        ("인도 🇮🇳",       8.0,  36.0),
-        ("호주 🇦🇺",     -44.0, -10.0),
-        ("브라질 🇧🇷",   -33.0,   5.0),
-        ("독일 🇩🇪",      47.5,  55.0),
-        ("영국 🇬🇧",      50.0,  59.0),
-        ("프랑스 🇫🇷",    42.5,  51.0),
-        ("이스라엘 🇮🇱",  29.5,  33.5),
-        ("UAE 🇦🇪",       22.5,  26.0),
-        ("사우디 🇸🇦",    16.5,  32.0),
-        ("싱가포르 🇸🇬",   1.1,   1.5),
-        ("캐나다 🇨🇦",    42.0,  83.0),
+        ("대한민국 🇰🇷",  36.5,  127.5,  34.0,  38.5),
+        ("일본 🇯🇵",      36.0,  138.0,  31.0,  45.5),
+        ("중국 🇨🇳",      35.0,  105.0,  18.0,  53.5),
+        ("미국 🇺🇸",      38.0,  -97.0,  25.0,  49.0),
+        ("러시아 🇷🇺",    60.0,   60.0,  50.0,  72.0),
+        ("인도 🇮🇳",      22.0,   78.0,   8.0,  36.0),
+        ("호주 🇦🇺",     -27.0,  133.0, -44.0, -10.0),
+        ("브라질 🇧🇷",   -15.0,  -47.0, -33.0,   5.0),
+        ("독일 🇩🇪",      51.0,   10.0,  47.5,  55.0),
+        ("영국 🇬🇧",      53.0,   -1.5,  50.0,  59.0),
+        ("프랑스 🇫🇷",    46.0,    2.5,  42.5,  51.0),
+        ("이스라엘 🇮🇱",  31.5,   34.8,  29.5,  33.5),
+        ("UAE 🇦🇪",       24.2,   54.4,  22.5,  26.0),
+        ("사우디 🇸🇦",    24.0,   45.0,  16.5,  32.0),
+        ("싱가포르 🇸🇬",   1.3,  103.8,   1.1,   1.5),
+        ("캐나다 🇨🇦",    60.0,  -96.0,  42.0,  83.0),
     ],
     "global":  [],
 }
@@ -541,8 +542,20 @@ class CoverageSection(QWidget):
         idx = self._combo.currentIndex()
         if idx < 0 or idx >= len(targets):
             return (0.0, 90.0)
-        _, lat_min, lat_max = targets[idx]
+        name, lat_c, lon_c, lat_min, lat_max = targets[idx]
         return (lat_min, lat_max)
+
+    def get_ground_station(self) -> Optional[GroundStation]:
+        """선택 국가/지역 중심 좌표 → GroundStation 반환. global → None"""
+        if self._cov_type == "global":
+            return None
+        targets = COVERAGE_TARGETS.get(self._cov_type, [])
+        idx = self._combo.currentIndex()
+        if idx < 0 or idx >= len(targets):
+            return None
+        name, lat_c, lon_c, lat_min, lat_max = targets[idx]
+        gs_name = name.split(" ")[0]   # 이모지 제거
+        return GroundStation(gs_name, lat_c, lon_c, 0.0, 5.0)
 
     def selected_target_name(self) -> str:
         if self._cov_type == "global":
@@ -836,7 +849,11 @@ class MissionPanel(QWidget):
             coverage             = self.coverage.value(),
         )
 
-    def update_status(self, orbit_result, budget_result=None):
+    def get_coverage_ground_station(self) -> Optional[GroundStation]:
+        """커버리지에서 선택된 국가/지역 중심 지상국 반환. global → None"""
+        return self.coverage.get_ground_station()
+
+    def update_status(self, orbit_result, budget_result=None, aperture_cm: float = 15.0):
         self._hint_lbl.setVisible(False)
         req = self.get_requirements()
 
@@ -865,9 +882,13 @@ class MissionPanel(QWidget):
             f"{req.lifetime_yr:.0f} yr", life_ok
         )
 
-        res_achiev = orbit_result.params.altitude_km / 100.0
+        # GSD = 1.22 × λ × h / D  (Rayleigh criterion, λ=500nm)
+        # aperture_cm 기본값 15cm → 500km에서 약 2m 해상도
+        h_m = orbit_result.params.altitude_km * 1000.0
+        aperture_m = max(0.01, aperture_cm * 0.01)
+        gsd_m = 1.22 * 5e-7 * h_m / aperture_m
         self._st_resol.update(
-            f"~{res_achiev:.0f} m",
+            f"~{gsd_m:.1f} m",
             f"{req.resolution_m:.1f} m",
-            res_achiev <= req.resolution_m * 2
+            gsd_m <= req.resolution_m
         )

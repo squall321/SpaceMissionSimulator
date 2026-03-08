@@ -6,8 +6,8 @@ SpaceD-AADE Platform — Version Module
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
 MINOR = 2
-PATCH = 3
-STAGE = "alpha"   # alpha / beta / rc / release
+PATCH = 4
+STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 VERSION_FULL = f"v{VERSION}-{STAGE}"
@@ -15,6 +15,19 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.2.4",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "기능 완성 3종 — 지상국 자동추가 / Mission 탭 복귀 / GSD 해상도",
+        "changes": [
+            ("feat", "📡 커버리지 선택 지상국 자동 추가 — 국가/지역 선택 시 해당 중심 좌표가 분석 및 Cesium 지구본에 반영"),
+            ("feat", "🎯 RECOMMEND 후 Mission 탭 자동 복귀 — 분석 완료 시 충족도 패널로 즉시 돌아옴"),
+            ("feat", "🔭 GSD 기반 해상도 계산 (Rayleigh criterion) — λ=500nm, 카메라 구경 입력값 반영"),
+            ("feat", "📸 Satellite Config에 Camera Aperture (cm) 입력 추가 — 기본 15cm"),
+            ("fix",  "🗺️ COVERAGE_TARGETS에 중심 lat/lon 추가 — get_ground_station() API 구현"),
+        ],
+    },
     {
         "version": "0.2.3",
         "date": "2026-03-08",

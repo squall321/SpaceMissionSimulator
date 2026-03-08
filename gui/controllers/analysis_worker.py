@@ -30,21 +30,23 @@ class AnalysisWorker(QThread):
 
     def __init__(self, params: OrbitParams,
                  mission_svc, thermal_svc, budget_svc, rad_svc, evaluator,
-                 sat_config: dict = None):
+                 sat_config: dict = None, extra_stations: list = None):
         super().__init__()
-        self.params      = params
-        self.mission_svc = mission_svc
-        self.thermal_svc = thermal_svc
-        self.budget_svc  = budget_svc
-        self.rad_svc     = rad_svc
-        self.evaluator   = evaluator
-        self.sat_config  = sat_config or self.DEFAULT_SAT_CONFIG
+        self.params         = params
+        self.mission_svc    = mission_svc
+        self.thermal_svc    = thermal_svc
+        self.budget_svc     = budget_svc
+        self.rad_svc        = rad_svc
+        self.evaluator      = evaluator
+        self.sat_config     = sat_config or self.DEFAULT_SAT_CONFIG
+        self.extra_stations = extra_stations or []
 
     def run(self):
         try:
             # Stage 1: 궤도 해석
             self.progress_msg.emit("🌍  Stage 1/4 · Orbit propagation...")
-            orbit = self.mission_svc.analyze(self.params, sat_config=self.sat_config)
+            stations = list(MissionAnalysisService.DEFAULT_STATIONS) + self.extra_stations
+            orbit = self.mission_svc.analyze(self.params, stations=stations, sat_config=self.sat_config)
             if orbit.error:
                 self.error.emit(f"Orbit error: {orbit.error}")
                 return

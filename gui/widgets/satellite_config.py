@@ -88,6 +88,7 @@ class SatelliteConfigPanel(QWidget):
             'bus_area_m2':         ConfigSpinBoxRow("Bus Surface Area",  "m²",  0.5, 10.0, 1.5,  0.1),
             'radiator_area_m2':    ConfigSpinBoxRow("Radiator Area",     "m²",  0.1, 5.0,  1.2,  0.1),
             'shielding_mm':        ConfigSpinBoxRow("Al Shielding",      "mm",  0.5, 20.0, 3.0,  0.5),
+            'aperture_cm':         ConfigSpinBoxRow("Camera Aperture",   "cm",  1.0, 100.0, 15.0, 0.5),
         }
         
         # 카테고리 분리 선
@@ -108,6 +109,9 @@ class SatelliteConfigPanel(QWidget):
         layout.addWidget(self.inputs['mass_panel_kg'])
         layout.addWidget(self.inputs['mass_electronics_kg'])
         layout.addWidget(self.inputs['mass_battery_kg'])
+
+        self._add_section_label(layout, "Payload / Imaging Optics")
+        layout.addWidget(self.inputs['aperture_cm'])
 
         for inp in self.inputs.values():
             inp.value_changed.connect(self._on_change)
