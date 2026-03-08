@@ -1,0 +1,61 @@
+# GMAT 설정 파일
+# SpaceD-AADE Platform에서 GMAT 연동을 위한 설정
+
+gmat:
+  # GMAT 실행 파일이 있는 디렉토리
+  # 기본값: SpaceD-AADE/tools/GMAT/bin
+  bin_dir: "${PROJECT_ROOT}/tools/GMAT/bin"
+  
+  # GMAT 실행 파일 이름
+  executable: "GMAT.exe"
+  
+  # 실행 타임아웃 (초)
+  timeout_seconds: 300
+  
+  # 실행 모드
+  # - console: GmatConsole.exe 사용 (CLI 전용, 더 빠름)
+  # - gui: GMAT.exe --minimize --run (GUI 모드, 안정적)
+  run_mode: "gui"
+  
+  # 결과 파일 인코딩
+  result_encoding: "utf-8"
+  
+  # 스크립트 템플릿 디렉토리
+  templates_dir: "${PROJECT_ROOT}/adapters/gmat/templates"
+
+# 궤도 해석 기본 설정
+analysis:
+  # 전파 기본 기간 (일)
+  default_duration_days: 3.0
+  
+  # 에페메리스 출력 간격 (초)
+  ephemeris_step_seconds: 60
+  
+  # 이클립스/접속 탐색 간격 (초)
+  event_step_seconds: 60
+
+# 지상국 기본 설정
+ground_stations:
+  - name: "Seoul_GS"
+    latitude_deg: 37.5665
+    longitude_deg: 126.9780
+    altitude_m: 30.0
+    min_elevation_deg: 10.0
+    
+  - name: "Daejeon_GS"
+    latitude_deg: 36.3504
+    longitude_deg: 127.3845
+    altitude_m: 70.0
+    min_elevation_deg: 10.0
+    
+  - name: "Svalbard_GS"
+    latitude_deg: 78.2292
+    longitude_deg: 15.4080
+    altitude_m: 45.0
+    min_elevation_deg: 5.0
+    
+  - name: "Fairbanks_GS"
+    latitude_deg: 64.8401
+    longitude_deg: -147.7200
+    altitude_m: 100.0
+    min_elevation_deg: 5.0

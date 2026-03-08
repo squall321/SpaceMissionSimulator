@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# GMAT binaries (large, installed separately)
+tools/GMAT/
+tools/*.zip
+tools/*.ps1
+tools/download_gmat.ps1
+tools/install_gmat.ps1
+
+# GMAT output files
+tools/GMAT/output/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+*.txt.bak
+
+# Spec / PyInstaller build artifacts
+*.spec
+build/
+dist/
+
+# Config with secrets
+config/secrets.yaml
+
+# Temp
+*.tmp
+*.temp

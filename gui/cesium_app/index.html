@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>SpaceD-AADE Globe</title>
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js"></script>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body,
+    #cesiumContainer {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #cesiumContainer {
+      position: relative;
+    }
+
+    /* HUD 오버레이 */
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(10, 15, 30, 0.80);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 220, 255, 0.25);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #e0f4ff;
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 11.5px;
+      line-height: 1.8;
+      min-width: 220px;
+      pointer-events: none;
+    }
+
+    #hud .hud-title {
+      font-size: 10px;
+      color: #00dcff;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      border-bottom: 1px solid rgba(0, 220, 255, 0.2);
+      padding-bottom: 4px;
+    }
+
+    #hud .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    #hud .label {
+      color: #7ea8be;
+    }
+
+    #hud .val {
+      color: #e0f4ff;
+      font-weight: bold;
+    }
+
+    #hud .cyan {
+      color: #00dcff;
+    }
+
+    #hud .red {
+      color: #ff4d6d;
+    }
+
+    #hud .green {
+      color: #39ff96;
+    }
+
+    #hud .orange {
+      color: #ffa040;
+    }
+
+    /* 범례 */
+    #legend {
+      position: absolute;
+      bottom: 70px;
+      left: 12px;
+      background: rgba(10, 15, 30, 0.80);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 220, 255, 0.15);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #e0f4ff;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    #legend .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    #legend .row {
+      display: flex;
+      align-items: center;
+      margin: 3px 0;
+    }
+
+    /* 로딩 */
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #00dcff;
+      font-family: monospace;
+      font-size: 14px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 12px;
+      border: 3px solid rgba(0, 220, 255, 0.2);
+      border-top-color: #00dcff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* 컨트롤 오버레이 */
+    #controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(10, 15, 30, 0.80);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 220, 255, 0.25);
+      border-radius: 8px;
+      padding: 10px;
+      color: #e0f4ff;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #controls button,
+    #controls select {
+      background: rgba(0, 220, 255, 0.1);
+      border: 1px solid rgba(0, 220, 255, 0.5);
+      color: #00dcff;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+    }
+
+    #controls button:hover,
+    #controls select:hover {
+      background: rgba(0, 220, 255, 0.3);
+    }
+
+    #controls select option {
+      background: #0a0f1e;
+      color: #00dcff;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    #sat-manager-container {
+      position: absolute;
+      top: 100px;
+      right: 12px;
+      background: rgba(10, 15, 30, 0.80);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 220, 255, 0.25);
+      border-radius: 8px;
+      padding: 10px;
+      color: #e0f4ff;
+      font-family: inherit;
+      font-size: 11px;
+      z-index: 10;
+      width: 250px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    #sat-manager-container .hud-title {
+      font-size: 10px;
+      color: #00dcff;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 220, 255, 0.2);
+    }
+
+    .sat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 4px;
+      border-bottom: 1px dashed rgba(0, 220, 255, 0.15);
+    }
+
+    .sat-item span.sat-name {
+      cursor: pointer;
+      font-weight: bold;
+      color: #00dcff;
+    }
+
+    .sat-item span.sat-name:hover {
+      color: #fff;
+    }
+
+    #sat-manager-container button {
+      background: rgba(0, 220, 255, 0.1);
+      border: 1px solid rgba(0, 220, 255, 0.5);
+      color: #00dcff;
+      padding: 3px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 10px;
+    }
+
+    #sat-manager-container button:hover {
+      background: rgba(0, 220, 255, 0.3);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cesiumContainer">
+    <div id="loading">
+      <div class="spinner"></div>Globe Loading...
+    </div>
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-title">◈ LIVE TELEMETRY</div>
+      <div class="row"><span class="label">Orbit #</span><span class="val" id="hud-orbit">—</span></div>
+      <div class="row"><span class="label">Altitude</span><span class="val cyan" id="hud-alt">— km</span></div>
+      <div class="row"><span class="label">Velocity</span><span class="val" id="hud-vel">— km/s</span></div>
+      <div class="row"><span class="label">Beta Angle</span><span class="val" id="hud-beta">—°</span></div>
+      <div class="row"><span class="label">Status</span><span class="val" id="hud-eclipse">—</span></div>
+      <div class="row"><span class="label">UTC</span><span class="val" id="hud-time" style="font-size:10px">—</span>
+      </div>
+      <div class="hud-title" style="margin-top:10px">◈ ORBIT PARAMS</div>
+      <div class="row"><span class="label">Type</span><span class="val orange" id="hud-type">—</span></div>
+      <div class="row"><span class="label">Apo / Peri</span><span class="val" id="hud-apo-peri">— km</span></div>
+      <div class="row"><span class="label">Inclination</span><span class="val" id="hud-inc">—°</span></div>
+      <div class="row"><span class="label">RAAN</span><span class="val" id="hud-raan">—°</span></div>
+      <div class="row"><span class="label">Eccentricity</span><span class="val" id="hud-ecc">—</span></div>
+      <div class="row"><span class="label">Period</span><span class="val" id="hud-period">— min</span></div>
+      <div class="hud-title" style="margin-top:10px">◈ MISSION STATS</div>
+      <div class="row"><span class="label">Sim. Time</span><span class="val" id="hud-dur">— days</span></div>
+      <div class="row"><span class="label">Sunlight</span><span class="val" id="hud-sunp">— %</span></div>
+      <div class="row"><span class="label">Contact</span><span class="val" id="hud-contactp" style="font-size:10.5px">—
+          calls/day</span></div>
+      <div class="row"><span class="label">Est. dV</span><span class="val" id="hud-dv">— m/s/yr</span></div>
+      <div class="row"><span class="label">Proton Flux</span><span class="val" id="hud-radp"
+          style="font-size:10.5px">—</span></div>
+      <div class="row"><span class="label">Network Lat.</span><span class="val" id="hud-latency"
+          style="font-size:10.5px">— ms</span></div>
+      <div class="row"><span class="label">Data DL</span><span class="val" id="hud-data">— GB/day</span></div>
+    </div>
+
+    <!-- 컨트롤 (시점 및 속도 조절) -->
+    <div id="controls">
+      <div class="ctrl-group">
+        <span>뷰 모드:</span>
+        <button id="btn-view-earth" onclick="setCameraEarth()">지구 중심</button>
+        <button id="btn-view-sat" onclick="setCameraSat()">위성 추적</button>
+      </div>
+      <div class="ctrl-group">
+        <span>시뮬 속도:</span>
+        <select id="speed-select" onchange="setSimSpeed(this.value)">
+          <option value="60">1x (x60)</option>
+          <option value="600">10x (x600)</option>
+          <option value="2880" selected>Fast (x2880)</option>
+          <option value="8640">Max (x8640)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 다중 위성 관리 패널 -->
+    <div id="sat-manager-container">
+      <div class="hud-title">◈ SATELLITE MANAGER</div>
+      <div id="sat-list"></div>
+      <button onclick="clearAllSatellites()"
+        style="margin-top:10px; width:100%; color:#ff4d6d; border-color:#ff4d6d;">전체 궤도 삭제 (초기화)</button>
+    </div>
+
+    <!-- 범례 -->
+    <div id="legend">
+      <div class="row"><span class="dot" style="background:#00dcff"></span>Sunlight</div>
+      <div class="row"><span class="dot" style="background:#ff4d6d"></span>Eclipse</div>
+      <div class="row"><span class="dot" style="background:#39ff96"></span>GS Contact</div>
+      <div class="row" style="margin-top:6px"><span class="dot" style="background:#ffa040"></span>Ground Station</div>
+    </div>
+  </div>
+
+  <script>
+    // Qt WebChannel 연결
+    let bridge = null;
+    let viewer = null;
+    let orbitEntity = null;
+    let satelliteEntity = null;
+    let groundStationEntities = [];
+    let currentOrbitData = null;
+    let orbitNum = 1;
+    let satelliteCount = 0;
+    let satellitesList = [];
+
+    // Cesium Ion 토큰 (무료 개인용)
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMDA1LTQyMjctODc4OS1lYjFlNDA1OGUzYmYiLCJpZCI6MjYxOTcsInNjb3BlcyI6WyJhc2wiXSwiaWF0IjoxNTg3NDA4NTM5fQ.A4FJzxBo-IpCpkBETrHAH-vZ_w0GnAMxPINS8LfBxrQ';
+
+    function initCesium() {
+      try {
+        viewer = new Cesium.Viewer('cesiumContainer', {
+          // 안정적이고 사실적인 인공위성 이미지 (ESRI World Imagery)
+          imageryProvider: new Cesium.ArcGisMapServerImageryProvider({
+            url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+          }),
+          baseLayerPicker: false,
+          geocoder: false,
+          homeButton: false,
+          sceneModePicker: false,
+          navigationHelpButton: false,
+          fullscreenButton: false,
+          infoBox: false,
+          selectionIndicator: false,
+          animation: false,
+          timeline: false
+        });
+      } catch (e) {
+        console.error("Cesium.Viewer Init Error: " + e.message + "\n" + e.stack);
+        document.getElementById('loading').innerHTML = "Viewer Error: " + e.message;
+        return;
+      }
+
+      // 배경 및 조명 설정
+      viewer.scene.globe.enableLighting = true;
+      viewer.scene.fog.enabled = true;
+      viewer.scene.fog.density = 0.0002;
+      // 기존 SkyBox 외부 URL에서 404 에러가 나면 렌더링이 멈출 수 있어 기본 별 배경 사용
+
+      // 초기 카메라 위치 (대한민국 상공)
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(127.0, 35.0, 20000000),
+        duration: 0
+      });
+
+      document.getElementById('loading').style.display = 'none';
+
+      // 시계 이벤트
+      viewer.clock.onTick.addEventListener(onClockTick);
+
+      // Qt WebChannel 연결 시도
+      if (typeof QWebChannel !== 'undefined') {
+        new QWebChannel(qt.webChannelTransport, function (channel) {
+          bridge = channel.objects.bridge;
+          if (bridge) {
+            bridge.orbitDataChanged.connect(updateOrbitData);
+            bridge.groundStationsChanged.connect(updateGroundStations);
+            console.log("bridge ready called");
+            bridge.ready();
+          }
+        });
+      }
+    }
+
+    function setCameraEarth() {
+      if (!viewer) return;
+      viewer.trackedEntity = undefined;
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(127.0, 35.0, 20000000),
+        duration: 2.0
+      });
+    }
+
+    function setCameraSat() {
+      if (!viewer || !satelliteEntity) return;
+      viewer.trackedEntity = satelliteEntity;
+    }
+
+    function setSimSpeed(val) {
+      if (!viewer) return;
+      viewer.clock.multiplier = parseInt(val);
+    }
+
+    function updateSatManagerUI() {
+      const listEl = document.getElementById('sat-list');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      satellitesList.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'sat-item';
+        item.innerHTML = `
+          <span class="sat-name" onclick="focusSatellite('${s.id}')">🛰 ${s.name}</span>
+          <div>
+            <button onclick="toggleSatellite('${s.id}')">표시/숨김</button>
+            <button onclick="removeSatellite('${s.id}')" style="color:#ff4d6d; border-color:transparent;">X</button>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+    }
+
+    function focusSatellite(id) {
+      const s = satellitesList.find(x => x.id === id);
+      if (s && s.entity) {
+        satelliteEntity = s.entity;
+        currentOrbitData = s.data;
+        viewer.trackedEntity = s.entity;
+      }
+    }
+
+    function toggleSatellite(id) {
+      const s = satellitesList.find(x => x.id === id);
+      if (s && s.dataSource) {
+        s.dataSource.show = !s.dataSource.show;
+      }
+    }
+
+    function removeSatellite(id) {
+      const idx = satellitesList.findIndex(x => x.id === id);
+      if (idx !== -1) {
+        const s = satellitesList[idx];
+        if (viewer.trackedEntity === s.entity) viewer.trackedEntity = undefined;
+        viewer.dataSources.remove(s.dataSource);
+        satellitesList.splice(idx, 1);
+        updateSatManagerUI();
+      }
+    }
+
+    function clearAllSatellites() {
+      viewer.dataSources.removeAll();
+      satellitesList = [];
+      satelliteEntity = null;
+      currentOrbitData = null;
+      viewer.trackedEntity = undefined;
+      updateSatManagerUI();
+      satelliteCount = 0;
+    }
+
+    function onClockTick(clock) {
+      if (!currentOrbitData || !satelliteEntity) return;
+      try {
+        const pos = satelliteEntity.position.getValue(clock.currentTime);
+        if (!pos) return;
+        const cart = Cesium.Ellipsoid.WGS84.cartesianToCartographic(pos);
+        const alt = cart.height / 1000;
+        const now = Cesium.JulianDate.toDate(clock.currentTime);
+
+        // 일식 확인: 태양광 여부
+        const sunPos = Cesium.Simon1994PlanetaryPositions
+          ? Cesium.Simon1994PlanetaryPositions.computeSunPositionInEarthInertialFrame(clock.currentTime)
+          : new Cesium.Cartesian3(1.5e8, 0, 0);
+        const inEclipse = isInEclipse(pos, sunPos);
+
+        // HUD 라이브 업데이트 (고도, 상태, 시간)
+        document.getElementById('hud-alt').textContent = alt.toFixed(1) + ' km';
+        document.getElementById('hud-time').textContent = now.toISOString().substring(0, 19) + ' Z';
+
+        // 지상국과 접속 상태 확인 로직 (간단히 접촉플래그로 확인)
+        const elapsed = Cesium.JulianDate.secondsDifference(clock.currentTime, clock.startTime);
+
+        let isContact = false;
+        if (currentOrbitData.times && currentOrbitData.contact_flags) {
+          let elapsedSec = elapsed;
+          if (elapsedSec < 0) elapsedSec = 0;
+          const approxIdx = Math.floor(elapsedSec / (currentOrbitData.times[1] || 60));
+          if (currentOrbitData.contact_flags[approxIdx]) isContact = true;
+        }
+
+        const eclEl = document.getElementById('hud-eclipse');
+        if (inEclipse) {
+          eclEl.textContent = '🔴 ECLIPSE';
+          eclEl.className = 'val red';
+        } else if (isContact) {
+          eclEl.textContent = '🟢 GS CONTACT';
+          eclEl.className = 'val green';
+        } else {
+          eclEl.textContent = '🟡 SUNLIGHT';
+          eclEl.className = 'val cyan';
+        }
+
+        // 궤도 번호
+        orbitNum = Math.floor(elapsed / (currentOrbitData.period_min * 60)) + 1;
+        document.getElementById('hud-orbit').textContent = '#' + orbitNum;
+
+      } catch (e) { }
+    }
+
+    function isInEclipse(satPos, sunPos) {
+      const R_earth = 6371000;
+      const sun = Cesium.Cartesian3.normalize(sunPos, new Cesium.Cartesian3());
+      const dot = Cesium.Cartesian3.dot(satPos, sun);
+      if (dot > 0) return false;
+      const mag = Cesium.Cartesian3.magnitude(satPos);
+      const perp2 = mag * mag - dot * dot;
+      return Math.sqrt(Math.max(perp2, 0)) < R_earth;
+    }
+
+    function updateOrbitData(jsonStr) {
+      console.log("updateOrbitData called with data length: " + (jsonStr ? jsonStr.length : 0));
+      try {
+        const data = JSON.parse(jsonStr);
+        // (다중 위성을 위해 기존 엔티티 삭제 생략. 대신 너무 많으면 성능을 위해 정리 가능)
+        // 지상국 재추가
+        if (data.ground_stations) updateGroundStations(JSON.stringify(data.ground_stations));
+
+        const epoch = Cesium.JulianDate.fromIso8601(data.epoch || '2026-03-07T00:00:00Z');
+        viewer.clock.startTime = epoch.clone();
+
+        satelliteCount++;
+        const satId = 'sat_' + satelliteCount;
+        const satName = 'SAT-' + satelliteCount;
+
+        // CZML 생성
+        const czml = buildCZML(data, epoch, satId, satName);
+        const ds = new Cesium.CzmlDataSource();
+        ds.load(czml).then(function () {
+          viewer.dataSources.add(ds);
+          const sat = ds.entities.getById(satId);
+          if (sat) satelliteEntity = sat;
+          currentOrbitData = data;
+
+          satellitesList.push({
+            id: satId, name: satName, dataSource: ds, entity: sat, data: data
+          });
+          updateSatManagerUI();
+
+          // 디폴트로 지구 뷰 유지, 애니메이션만 활성화
+          if (sat) {
+            viewer.clock.currentTime = epoch.clone();
+            viewer.clock.multiplier = 2880; // 24시간 = 30초
+            viewer.clock.shouldAnimate = true;
+            // viewer.trackedEntity = sat; // 위성 추적은 수동으로 (Manager 패널 클릭 또는 제어판)
+          }
+        }).catch(function (e) { console.error('CZML load error: ', e); });
+
+        // HUD 고정 파라미터 업데이트 (GMAT 데이터 등)
+        document.getElementById('hud-vel').textContent = data.velocity ? data.velocity.toFixed(2) + ' km/s' : '—';
+        document.getElementById('hud-beta').textContent = (data.beta_angle || 0).toFixed(1) + '°';
+        document.getElementById('hud-type').textContent = data.orbit_type || '—';
+        document.getElementById('hud-apo-peri').textContent = (data.altitude_max || 0).toFixed(0) + ' / ' + (data.altitude_min || 0).toFixed(0) + ' km';
+        document.getElementById('hud-inc').textContent = (data.inclination || 0).toFixed(1) + '°';
+        document.getElementById('hud-raan').textContent = (data.raan || 0).toFixed(1) + '°';
+        document.getElementById('hud-ecc').textContent = (data.eccentricity !== undefined) ? data.eccentricity.toFixed(4) : '—';
+        document.getElementById('hud-period').textContent = (data.period_min || 0).toFixed(1) + ' min';
+        document.getElementById('hud-dur').textContent = (data.duration_days || 0).toFixed(1) + ' days';
+        document.getElementById('hud-sunp').textContent = data.sunlight_fraction !== undefined ? (data.sunlight_fraction * 100).toFixed(1) + ' %' : '—';
+
+        let contactsStr = '—';
+        if (data.contacts_per_day !== undefined && data.contact_time_min !== undefined) {
+          contactsStr = data.contacts_per_day.toFixed(1) + ' (' + data.contact_time_min.toFixed(1) + 'm)';
+        }
+        document.getElementById('hud-contactp').textContent = contactsStr;
+
+        document.getElementById('hud-dv').textContent = data.delta_v !== undefined ? data.delta_v.toFixed(1) + ' m/s/yr' : '—';
+
+        if (data.rad_proton !== undefined && data.rad_proton > 0) {
+          document.getElementById('hud-radp').textContent = data.rad_proton.toExponential(2) + ' /cm²/s';
+        }
+
+        let latStr = '—';
+        if (data.latency_min_ms !== undefined && data.latency_max_ms !== undefined) {
+          latStr = data.latency_min_ms.toFixed(1) + ' ~ ' + data.latency_max_ms.toFixed(1) + ' ms';
+        }
+        document.getElementById('hud-latency').textContent = latStr;
+
+        document.getElementById('hud-data').textContent = data.data_per_day_gb !== undefined ? data.data_per_day_gb.toFixed(1) + ' GB/day' : '—';
+      } catch (e) { console.error('updateOrbitData error:', e); }
+    }
+
+    function buildCZML(data, epoch, satId, satName) {
+      const times = data.times;  // 초 배열
+      const xs = data.x;  // km (ECI)
+      const ys = data.y;
+      const zs = data.z;
+      const eclipseFlags = data.eclipse_flags || times.map(() => false);
+      const contactFlags = data.contact_flags || times.map(() => false);
+
+      // 위치 배열 (CZML cartesian: [dt, x, y, z, ...])
+      let cartesian = [];
+      for (let i = 0; i < times.length; i++) {
+        cartesian.push(times[i]);
+        cartesian.push(xs[i] * 1000);  // km→m
+        cartesian.push(ys[i] * 1000);
+        cartesian.push(zs[i] * 1000);
+      }
+
+      const endEpoch = Cesium.JulianDate.addSeconds(epoch, times[times.length - 1] || 86400, new Cesium.JulianDate());
+      const interval = epoch.toString() + '/' + endEpoch.toString();
+
+      // 위성 포인트 색상 (시간별 동기화)
+      let colorArray = [];
+      for (let i = 0; i < times.length; i++) {
+        let c;
+        if (contactFlags[i]) c = [57, 255, 150];  // green
+        else if (eclipseFlags[i]) c = [255, 77, 109];  // red
+        else c = [0, 255, 255];  // cyan
+
+        colorArray.push(times[i]);
+        colorArray.push(c[0], c[1], c[2], 255);
+      }
+
+      // 전체 궤도 구분 (일식, 일조, 교신 등 구간별로 폴리라인 분리)
+      let segments = [];
+      const getState = (i) => {
+        if (contactFlags[i]) return 'contact';
+        if (eclipseFlags[i]) return 'eclipse';
+        return 'sun';
+      };
+
+      if (times.length > 0) {
+        let currentSeg = { state: getState(0), positions: [xs[0] * 1000, ys[0] * 1000, zs[0] * 1000] };
+        for (let i = 1; i < times.length; i++) {
+          let state = getState(i);
+          let px = xs[i] * 1000, py = ys[i] * 1000, pz = zs[i] * 1000;
+          if (state !== currentSeg.state) {
+            currentSeg.positions.push(px, py, pz); // 연결성 유지
+            segments.push(currentSeg);
+            currentSeg = { state: state, positions: [px, py, pz] };
+          } else {
+            currentSeg.positions.push(px, py, pz);
+          }
+        }
+        segments.push(currentSeg);
+      }
+
+      const czml = [
+        {
+          "id": "document", "name": "SpaceD Orbit", "version": "1.0",
+          "clock": {
+            "interval": interval, "currentTime": epoch.toString(),
+            "multiplier": 2880, "range": "LOOP_STOP", "step": "SYSTEM_CLOCK_MULTIPLIER"
+          }
+        },
+        {
+          "id": satId,
+          "name": satName,
+          "availability": interval,
+          "position": {
+            "interpolationAlgorithm": "LAGRANGE",
+            "interpolationDegree": 5,
+            "referenceFrame": "INERTIAL",
+            "epoch": epoch.toString(),
+            "cartesian": cartesian
+          },
+          "point": {
+            "color": {
+              "epoch": epoch.toString(),
+              "rgba": colorArray
+            },
+            "outlineColor": { "rgba": [255, 255, 255, 200] },
+            "outlineWidth": 2,
+            "pixelSize": 14
+          },
+          "path": {
+            "show": [{ "interval": interval, "boolean": true }],
+            "width": 3,
+            "resolution": 120,
+            "leadTime": 0,
+            "trailTime": data.period_min ? data.period_min * 60 * 0.5 : 3000,
+            "material": {
+              "solidColor": { "color": { "rgba": [255, 255, 255, 200] } }
+            }
+          },
+          "label": {
+            "text": satName,
+            "font": "13px Consolas",
+            "fillColor": { "rgba": [0, 255, 255, 255] },
+            "outlineColor": { "rgba": [0, 0, 0, 255] },
+            "outlineWidth": 3,
+            "style": "FILL_AND_OUTLINE",
+            "verticalOrigin": "BOTTOM",
+            "pixelOffset": { "cartesian2": [0, -18] }
+          }
+        }
+      ];
+
+      // 정적 폴리라인 궤적들 이어붙이기
+      segments.forEach((seg, idx) => {
+        let rgba = [0, 220, 255, 100];  // sunlight (opacity slightly reduced for multi-sat overlap limits)
+        if (seg.state === 'contact') rgba = [57, 255, 150, 180]; // GS Contact
+        else if (seg.state === 'eclipse') rgba = [255, 77, 109, 180]; // Eclipse
+
+        czml.push({
+          "id": "orbit_seg_" + satId + "_" + idx,
+          "polyline": {
+            "positions": { "cartesian": seg.positions },
+            "width": 3,
+            "material": {
+              "solidColor": { "color": { "rgba": rgba } }
+            }
+          }
+        });
+      });
+
+      return czml;
+    }
+
+    function updateGroundStations(jsonStr) {
+      try {
+        const stations = JSON.parse(jsonStr);
+        // 기존 지상국 제거
+        for (const e of groundStationEntities) viewer.entities.remove(e);
+        groundStationEntities = [];
+
+        for (const gs of stations) {
+          const e = viewer.entities.add({
+            name: gs.name,
+            position: Cesium.Cartesian3.fromDegrees(gs.lon, gs.lat, gs.alt || 0),
+            billboard: {
+              image: createGSIcon(),
+              width: 20, height: 20,
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+            },
+            label: {
+              text: gs.name,
+              font: '11px Consolas',
+              fillColor: Cesium.Color.fromCssColorString('#ffa040'),
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 2,
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              pixelOffset: new Cesium.Cartesian2(0, -24),
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM
+            }
+          });
+          groundStationEntities.push(e);
+        }
+      } catch (e) { console.error('updateGroundStations:', e); }
+    }
+
+    function createGSIcon() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 20; canvas.height = 20;
+      const ctx = canvas.getContext('2d');
+      ctx.beginPath();
+      ctx.arc(10, 10, 7, 0, 2 * Math.PI);
+      ctx.fillStyle = 'rgba(255,160,64,0.85)';
+      ctx.fill();
+      ctx.strokeStyle = '#ffd080';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      return canvas.toDataURL();
+    }
+
+    // 초기화
+    window.addEventListener('load', initCesium);
+  </script>
+</body>
+
+</html>

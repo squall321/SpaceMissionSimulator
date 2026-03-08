@@ -1,0 +1,118 @@
+%----------------------------------------
+% SpaceD-AADE GMAT Basic Mission Template
+%----------------------------------------
+
+%----------------------------------------
+% Spacecraft
+%----------------------------------------
+Create Spacecraft Sat;
+GMAT Sat.DateFormat = UTCGregorian;
+GMAT Sat.Epoch = '{{ epoch }}';
+GMAT Sat.CoordinateSystem = EarthMJ2000Eq;
+GMAT Sat.DisplayStateType = Keplerian;
+GMAT Sat.SMA = {{ sma }};
+GMAT Sat.ECC = {{ ecc }};
+GMAT Sat.INC = {{ inc }};
+GMAT Sat.RAAN = {{ raan }};
+GMAT Sat.AOP = {{ aop }};
+GMAT Sat.TA = {{ ta }};
+GMAT Sat.DryMass = {{ dry_mass }};
+GMAT Sat.Cd = 2.2;
+GMAT Sat.Cr = 1.8;
+GMAT Sat.DragArea = {{ drag_area }};
+GMAT Sat.SRPArea = {{ srp_area }};
+
+%----------------------------------------
+% Ground Stations
+%----------------------------------------
+{% for gs in ground_stations %}
+Create GroundStation {{ gs.name }};
+GMAT {{ gs.name }}.CentralBody = Earth;
+GMAT {{ gs.name }}.StateType = Spherical;
+GMAT {{ gs.name }}.HorizonReference = Sphere;
+GMAT {{ gs.name }}.Location1 = {{ gs.lat }};
+GMAT {{ gs.name }}.Location2 = {{ gs.lon }};
+GMAT {{ gs.name }}.Location3 = {{ gs.alt / 1000.0 }}; % km
+GMAT {{ gs.name }}.MinimumElevationAngle = 10.0;
+{% endfor %}
+
+%----------------------------------------
+% Propagators
+%----------------------------------------
+Create ForceModel LEO_Prop_ForceModel;
+GMAT LEO_Prop_ForceModel.CentralBody = Earth;
+GMAT LEO_Prop_ForceModel.PrimaryBodies = {Earth};
+GMAT LEO_Prop_ForceModel.PointMasses = {Sun, Luna};
+GMAT LEO_Prop_ForceModel.Drag = None;
+GMAT LEO_Prop_ForceModel.SRP = On;
+GMAT LEO_Prop_ForceModel.RelativisticCorrection = Off;
+GMAT LEO_Prop_ForceModel.ErrorControl = RSSStep;
+GMAT LEO_Prop_ForceModel.GravityField.Earth.Degree = 4;
+GMAT LEO_Prop_ForceModel.GravityField.Earth.Order = 4;
+GMAT LEO_Prop_ForceModel.GravityField.Earth.StmLimit = 100;
+GMAT LEO_Prop_ForceModel.GravityField.Earth.PotentialFile = 'JGM2.cof';
+
+Create Propagator LEO_Prop;
+GMAT LEO_Prop.FM = LEO_Prop_ForceModel;
+GMAT LEO_Prop.Type = RungeKutta89;
+GMAT LEO_Prop.InitialStepSize = 60;
+GMAT LEO_Prop.Accuracy = 9.999999999999999e-12;
+GMAT LEO_Prop.MinStep = 0.001;
+GMAT LEO_Prop.MaxStep = 60;
+GMAT LEO_Prop.MaxStepAttempts = 50;
+GMAT LEO_Prop.StopIfAccuracyIsViolated = true;
+
+%----------------------------------------
+% Event Locators
+%----------------------------------------
+Create EclipseLocator EclipseLoc;
+GMAT EclipseLoc.Spacecraft = Sat;
+GMAT EclipseLoc.Filename = '{{ output_dir }}/Eclipse_Report.txt';
+GMAT EclipseLoc.OccultingBodies = {Earth, Luna};
+GMAT EclipseLoc.StepSize = 60;
+GMAT EclipseLoc.UseLightTimeDelay = true;
+GMAT EclipseLoc.UseStellarAberration = true;
+GMAT EclipseLoc.WriteReport = true;
+GMAT EclipseLoc.RunMode = Automatic;
+GMAT EclipseLoc.UseEntireInterval = true;
+GMAT EclipseLoc.EclipseTypes = {'Umbra', 'Penumbra', 'Antumbra'};
+
+Create ContactLocator ContactLoc;
+GMAT ContactLoc.Target = Sat;
+GMAT ContactLoc.Filename = '{{ output_dir }}/Contact_Report.txt';
+GMAT ContactLoc.StepSize = 60;
+GMAT ContactLoc.UseLightTimeDelay = true;
+GMAT ContactLoc.UseStellarAberration = true;
+GMAT ContactLoc.WriteReport = true;
+GMAT ContactLoc.RunMode = Automatic;
+GMAT ContactLoc.UseEntireInterval = true;
+GMAT ContactLoc.Observers = { {% for gs in ground_stations %}{{ gs.name }}{% if not loop.last %}, {% endif %}{% endfor %} };
+GMAT ContactLoc.LightTimeDirection = Receive;
+
+%----------------------------------------
+% Output Reports (Ephemeris)
+%----------------------------------------
+Create ReportFile EphemReport;
+GMAT EphemReport.SolverIterations = Current;
+GMAT EphemReport.UpperLeft = [ 0 0 ];
+GMAT EphemReport.Size = [ 0 0 ];
+GMAT EphemReport.RelativeZOrder = 0;
+GMAT EphemReport.Maximized = false;
+GMAT EphemReport.Filename = '{{ output_dir }}/Ephemeris.txt';
+GMAT EphemReport.Precision = 16;
+GMAT EphemReport.Add = {Sat.UTCGregorian, Sat.EarthMJ2000Eq.X, Sat.EarthMJ2000Eq.Y, Sat.EarthMJ2000Eq.Z, Sat.EarthMJ2000Eq.VX, Sat.EarthMJ2000Eq.VY, Sat.EarthMJ2000Eq.VZ, Sat.Earth.Latitude, Sat.Earth.Longitude, Sat.Earth.Altitude};
+GMAT EphemReport.WriteHeaders = true;
+GMAT EphemReport.LeftJustify = On;
+GMAT EphemReport.ZeroFill = Off;
+GMAT EphemReport.FixedWidth = true;
+GMAT EphemReport.Delimiter = ' ';
+GMAT EphemReport.ColumnWidth = 23;
+GMAT EphemReport.WriteReport = true;
+
+%----------------------------------------
+% Mission Sequence
+%----------------------------------------
+BeginMissionSequence;
+
+% Propagate for N days with 60s step
+Propagate LEO_Prop(Sat) {Sat.ElapsedDays = {{ duration_days }}};
