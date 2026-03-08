@@ -23,6 +23,9 @@ tools/install_gmat.ps1
 # GMAT output files
 tools/GMAT/output/
 
+# Session / user data (auto-generated)
+data/scenarios/_session.json
+
 # IDE
 .vscode/
 .idea/

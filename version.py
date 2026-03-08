@@ -6,15 +6,28 @@ SpaceD-AADE Platform — Version Module
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
 MINOR = 5
-PATCH = 0
+PATCH = 1
 STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 VERSION_FULL = f"v{VERSION}-{STAGE}"
-BUILD_DATE = "2026-03-09"
+BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.5.1",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "시나리오 저장/불러오기 — 세션 자동 복원",
+        "changes": [
+            ("feat", "💾 시나리오 저장 (다른 이름으로) — JSON"),
+            ("feat", "📂 시나리오 불러오기 — JSON"),
+            ("feat", "🔄 앱 재시작 시 마지막 세션 자동 복원 (_session.json)"),
+            ("feat", "⚡ 시나리오 변경마다 자동 저장 (data/scenarios/_session.json)"),
+            ("fix",  "🗂️ data/scenarios/ 디렉토리 없을 시 자동 생성"),
+        ],
+    },
     {
         "version": "0.5.0",
         "date": "2026-03-09",

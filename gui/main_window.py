@@ -96,8 +96,9 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._connect_signals()
 
-        # 초기 분석 (기본 파라미터로)
-        self.run_analysis(OrbitParams())
+        # 마지막 세션 복원 → 없으면 기본 파라미터로 첫 분석 실행
+        if not self.scenario_panel.load_session():
+            self.run_analysis(OrbitParams())
 
     # ── UI 구성 ────────────────────────────────────────────────
     def _build_ui(self):

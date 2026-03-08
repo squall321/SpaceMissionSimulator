@@ -9,13 +9,20 @@ Satellite Scenario Panel  (v0.5.0)
   [ 시나리오 목록 (좌) ]  |  [ 위성 설정 패널 (우) ]
 """
 import json
+from datetime   import datetime
+from pathlib    import Path
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QFrame, QSizePolicy, QStackedWidget, QAbstractScrollArea,
-    QToolButton,
+    QToolButton, QFileDialog, QMessageBox,
 )
 from PySide6.QtCore  import Signal, Qt, QSize
 from PySide6.QtGui   import QColor, QPainter, QPen, QFont
+
+# 기본 세션 파일 경로
+_APP_DIR      = Path(__file__).parent.parent.parent   # SpaceD-AADE/
+_SESSION_DIR  = _APP_DIR / "data" / "scenarios"
+_SESSION_FILE = _SESSION_DIR / "_session.json"
 
 from gui.widgets.satellite_config import SatelliteConfigPanel
 
@@ -174,14 +181,38 @@ class SatelliteScenarioPanel(QWidget):
         hdr_l.addWidget(title)
         hdr_l.addStretch()
 
+        # 도구 버튼 스타일 공용
+        _btn_ss = (
+            "QPushButton { background:transparent; color:#445566; border:1px solid #2a3a4a;"
+            "  border-radius:3px; padding:0 7px; font-size:9px; }"
+            "QPushButton:hover { color:#00dcff; border-color:#00dcff; }"
+        )
+        _del_ss = (
+            "QPushButton { background:transparent; color:#445566; border:1px solid #2a3a4a;"
+            "  border-radius:3px; padding:0 8px; font-size:9px; }"
+            "QPushButton:hover { color:#ff4d6d; border-color:#ff4d6d; }"
+        )
+
+        # 저장 버튼
+        self._save_btn = QPushButton("💾")
+        self._save_btn.setFixedSize(24, 22)
+        self._save_btn.setToolTip("시나리오 저장 (JSON)")
+        self._save_btn.setStyleSheet(_btn_ss)
+        self._save_btn.clicked.connect(self.save_scenarios)
+        hdr_l.addWidget(self._save_btn)
+
+        # 불러오기 버튼
+        self._load_btn = QPushButton("📂")
+        self._load_btn.setFixedSize(24, 22)
+        self._load_btn.setToolTip("시나리오 불러오기 (JSON)")
+        self._load_btn.setStyleSheet(_btn_ss)
+        self._load_btn.clicked.connect(self.load_scenarios)
+        hdr_l.addWidget(self._load_btn)
+
         # 전체 클리어 버튼
         self._clear_btn = QPushButton("전체 삭제")
         self._clear_btn.setFixedHeight(22)
-        self._clear_btn.setStyleSheet("""
-            QPushButton { background:transparent; color:#445566; border:1px solid #2a3a4a;
-                          border-radius:3px; padding:0 8px; font-size:9px; }
-            QPushButton:hover { color:#ff4d6d; border-color:#ff4d6d; }
-        """)
+        self._clear_btn.setStyleSheet(_del_ss)
         self._clear_btn.clicked.connect(self.clear_all)
         hdr_l.addWidget(self._clear_btn)
 
@@ -357,6 +388,91 @@ class SatelliteScenarioPanel(QWidget):
 
     def _emit_scenarios(self):
         self.scenarios_changed.emit(self.get_all_scenarios())
+        self.save_session()   # 변경 시마다 세션 자동 저장
+
+    # ── 직렬화 헬퍼 ──────────────────────────────────────────────────────────
+    def _to_json_data(self) -> dict:
+        return {
+            "app":      "SpaceD-AADE",
+            "saved_at": datetime.now().isoformat(timespec="seconds"),
+            "scenarios": [
+                {
+                    "id":            s["id"],
+                    "name":          s["name"],
+                    "orbit_summary": s["orbit_summary"],
+                    "sat_config":    s["panel"].get_config(),
+                }
+                for s in self._scenarios
+            ],
+        }
+
+    def _restore_from_data(self, data: dict):
+        """JSON data dict 로부터 시나리오 복원 (기존 내용 먼저 클리어)"""
+        self.clear_all()
+        for sc in data.get("scenarios", []):
+            self.add_scenario(
+                sc.get("id",            f"SAT-{len(self._scenarios)+1}"),
+                sc.get("name",          f"SAT-{len(self._scenarios)+1}"),
+                sc.get("orbit_summary", "—"),
+                sc.get("sat_config",    {}),
+            )
+
+    # ── 공개: 저장/불러오기 (파일 다이얼로그) ────────────────────────────────
+    def save_scenarios(self):
+        """다른 이름으로 저장 (QFileDialog)"""
+        _SESSION_DIR.mkdir(parents=True, exist_ok=True)
+        path, _ = QFileDialog.getSaveFileName(
+            self, "시나리오 저장", str(_SESSION_DIR / "scenarios.json"),
+            "JSON 파일 (*.json)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self._to_json_data(), f, ensure_ascii=False, indent=2)
+            self._status_lbl.setText(f"저장됨: {Path(path).name}")
+        except Exception as e:
+            QMessageBox.warning(self, "저장 실패", str(e))
+
+    def load_scenarios(self):
+        """파일 선택 후 불러오기 (QFileDialog)"""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "시나리오 불러오기", str(_SESSION_DIR),
+            "JSON 파일 (*.json)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            self._restore_from_data(data)
+            self._status_lbl.setText(f"불러옴: {Path(path).name}")
+        except Exception as e:
+            QMessageBox.warning(self, "불러오기 실패", str(e))
+
+    # ── 공개: 자동 세션 저장/복원 ────────────────────────────────────────────
+    def save_session(self):
+        """기본 경로에 자동 저장 (사용자 조작 없음)"""
+        try:
+            _SESSION_DIR.mkdir(parents=True, exist_ok=True)
+            with open(_SESSION_FILE, "w", encoding="utf-8") as f:
+                json.dump(self._to_json_data(), f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass  # 자동 저장 실패는 조용히 무시
+
+    def load_session(self) -> bool:
+        """마지막 세션 자동 복원. 성공 시 True 반환."""
+        if not _SESSION_FILE.exists():
+            return False
+        try:
+            with open(_SESSION_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            if not data.get("scenarios"):
+                return False
+            self._restore_from_data(data)
+            return True
+        except Exception:
+            return False
 
     def _update_status(self):
         n = len(self._scenarios)
