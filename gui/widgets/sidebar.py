@@ -6,6 +6,11 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QSpacer
 from PySide6.QtCore    import Signal, Qt
 from PySide6.QtGui     import QFont
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+import version as V
+
 
 class NavButton(QPushButton):
     def __init__(self, icon_char: str, label: str, section: str):
@@ -104,6 +109,16 @@ class Sidebar(QWidget):
         settings_btn = NavButton("⚙️", "Settings", "settings")
         layout.addWidget(settings_btn)
 
+        # 버전 배지
+        ver_lbl = QLabel(V.VERSION_FULL)
+        ver_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ver_lbl.setFixedHeight(28)
+        ver_lbl.setStyleSheet(
+            "color:#2a5a6a;font-size:8px;font-weight:700;"
+            "background:transparent;letter-spacing:0.5px;"
+        )
+        layout.addWidget(ver_lbl)
+
         self.setStyleSheet("""
         #sidebar { background: #060c18; border-right: 1px solid #1e2a3a; }
         """)
@@ -113,6 +128,14 @@ class Sidebar(QWidget):
             if btn is not clicked_btn:
                 btn.setChecked(False)
         self.nav_changed.emit(section)
+
+    def select_section(self, section: str):
+        """외부에서 특정 섹션으로 전환 (버튼 상태 동기화)"""
+        for btn in self.buttons:
+            if btn.section == section:
+                btn.setChecked(True)
+                self._on_click(section, btn)
+                return
 
     def _on_optimize_click(self):
         self.optimize_clicked.emit()

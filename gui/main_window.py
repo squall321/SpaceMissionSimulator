@@ -6,7 +6,8 @@ import sys, os, json, math
 from pathlib import Path
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QSplitter, QLabel, QStatusBar, QProgressBar, QSizePolicy, QStackedWidget
+    QSplitter, QLabel, QStatusBar, QProgressBar, QSizePolicy, QStackedWidget,
+    QPushButton
 )
 from PySide6.QtCore    import Qt, QThread, Signal, QUrl, QObject, Slot
 from PySide6.QtGui     import QFont, QIcon, QColor
@@ -33,6 +34,9 @@ from gui.widgets.budget_viewer  import BudgetViewer
 from gui.controllers.analysis_worker import AnalysisWorker
 from gui.widgets.comparison_dialog import ComparisonDialog
 from gui.widgets.optimization_dialog import OrbitOptimizationDialog
+from gui.widgets.mission_panel import MissionPanel
+from gui.widgets.changelog_dialog import ChangelogDialog
+import version as V
 
 BASE_DIR = Path(__file__).parent
 
@@ -74,7 +78,7 @@ class CustomWebPage(QWebEnginePage):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SpaceD-AADE Platform  ·  v0.1 Alpha")
+        self.setWindowTitle(f"SpaceD-AADE Platform  ·  {V.VERSION_FULL}")
         self.resize(1600, 960)
         self.setMinimumSize(1200, 700)
 
@@ -148,6 +152,10 @@ class MainWindow(QMainWindow):
         self.rad_viewer = RadiationViewer()
         self.right_stack.addWidget(self.rad_viewer)
 
+        # -- 페이지 0 (index 0): 미션 정의 패널 --
+        self.mission_panel = MissionPanel()
+        self.right_stack.insertWidget(0, self.mission_panel)
+
         # -- 페이지 5: 예산 (질량/전력) 뷰어 --
         self.budget_viewer = BudgetViewer()
         self.right_stack.addWidget(self.budget_viewer)
@@ -161,6 +169,9 @@ class MainWindow(QMainWindow):
         splitter.setStyleSheet("QSplitter::handle { background: #1e2a3a; }")
         root.addWidget(splitter)
 
+        # 초기 패널: Orbit (mission_panel이 index 0에 삽입됐으므로 orbit=1)
+        self.right_stack.setCurrentIndex(1)
+
         # 상태 바
         self.status_bar = QStatusBar()
         self.status_bar.setObjectName("statusBar")
@@ -173,6 +184,20 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.progress)
         self.status_label = QLabel("  Ready")
         self.status_bar.addWidget(self.status_label)
+
+        # 버전 배지 (우측 하단)
+        self.ver_btn = QPushButton(V.VERSION_FULL)
+        self.ver_btn.setFixedHeight(18)
+        self.ver_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.ver_btn.setStyleSheet("""
+        QPushButton{
+            color:#2a8aaa;background:transparent;border:none;
+            font-size:10px;font-weight:700;padding:0 8px;
+        }
+        QPushButton:hover{color:#00dcff;text-decoration:underline;}
+        """)
+        self.ver_btn.clicked.connect(self._show_changelog)
+        self.status_bar.addPermanentWidget(self.ver_btn)
 
     def _build_globe(self) -> QWebEngineView:
         """CesiumJS 웹뷰 생성"""
@@ -207,6 +232,8 @@ class MainWindow(QMainWindow):
         self.sidebar.optimize_clicked.connect(self.show_optimization_dialog)
         self.dashboard.satellite_selected.connect(self.on_satellite_selected)
         self.dashboard.compare_requested.connect(self.show_comparison_dialog)
+        # Mission Panel 시그널
+        self.mission_panel.orbit_recommended.connect(self._apply_recommended_orbit)
 
     def show_comparison_dialog(self):
         if not hasattr(self, 'results_history') or not self.results_history:
@@ -225,6 +252,17 @@ class MainWindow(QMainWindow):
         """최적화 결과를 UI에 적용하고 분석 실행"""
         self.orbit_config.set_params(orbit_params)
         self.run_analysis(orbit_params)
+
+    def _apply_recommended_orbit(self, orbit_params: OrbitParams):
+        """Mission Panel 추천 궤도 → Orbit 패널 적용 + 분석 실행"""
+        self.orbit_config.set_params(orbit_params)
+        # Orbit 탭으로 자동 전환해서 사용자가 결과를 바로 확인
+        self.sidebar.select_section("orbit")
+        self.run_analysis(orbit_params)
+
+    def _show_changelog(self):
+        dlg = ChangelogDialog(self)
+        dlg.exec()
 
     # ── 분석 실행 ──────────────────────────────────────────────
     def trigger_analysis(self):
@@ -269,6 +307,9 @@ class MainWindow(QMainWindow):
 
         # 대시보드 갱신
         self.dashboard.update_all(orbit, budget, rad, thermal, score)
+
+        # Mission Panel 요구사항 충족도 갱신
+        self.mission_panel.update_status(orbit, budget)
 
         # 타임라인 갱신
         self.timeline.update_timeline(orbit)
@@ -365,12 +406,14 @@ class MainWindow(QMainWindow):
         }
 
     def on_nav_changed(self, section: str):
+        # Mission Panel이 index 0에 삽입되었으므로 모든 인덱스 +1
         mapping = {
-            "orbit": 0,
-            "satellite": 1,
-            "thermal": 2,
-            "radiation": 3,
-            "budget": 4
+            "mission":   0,
+            "orbit":     1,
+            "satellite": 2,
+            "thermal":   3,
+            "radiation": 4,
+            "budget":    5
         }
         if section in mapping:
             self.right_stack.setCurrentIndex(mapping[section])
