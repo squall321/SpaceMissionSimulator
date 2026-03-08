@@ -5,16 +5,30 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 6
+MINOR = 7
 PATCH = 0
 STAGE = "alpha"
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 VERSION_FULL = f"v{VERSION}-{STAGE}"
-BUILD_DATE = "2026-03-08"
+BUILD_DATE = "2026-03-09"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.7.0",
+        "date": "2026-03-09",
+        "stage": "alpha",
+        "highlights": "Budget Panel 3탭 — Mass · Power · Link 전면 재설계",
+        "changes": [
+            ("feat", "⚖️ Mass Tab — CBE/Margin%/MEV 테이블 + 누적 수평 바차트 (Limit 점선)"),
+            ("feat", "⚡ Power Tab — KPI 줄 + 발전/소비/마진 바차트 + Payload/Bus 도넛"),
+            ("feat", "📡 Link Tab — 일일 다운링크 게이지 + 접속횟수/속도/마진 바차트"),
+            ("feat", "🗂️ BudgetResult 보강 — solar_generated_w, power_margin_w, contact_count, contact_time_per_day_min, MASS_MARGINS"),
+            ("feat", "🔢 BudgetService calc_power_budget() — 신규 필드 전산화"),
+            ("refactor", "🎨 BudgetViewer → QTabWidget 기반 3탭 레이아웃 (Lazy render)"),
+        ],
+    },
     {
         "version": "0.6.0",
         "date": "2026-03-08",

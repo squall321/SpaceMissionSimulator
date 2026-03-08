@@ -99,35 +99,54 @@ class StructuralResult:
 @dataclass
 class BudgetResult:
     """예산 계산 결과 전체"""
-    # 질량 예산 [kg] (CBE / MEV)
-    mass_structure_cbe: float = 0.0
-    mass_power_cbe: float = 0.0
-    mass_thermal_cbe: float = 0.0
-    mass_adcs_cbe: float = 0.0
-    mass_cdh_cbe: float = 0.0
-    mass_comms_cbe: float = 0.0
-    mass_propulsion_cbe: float = 0.0
-    mass_payload_cbe: float = 0.0
-    mass_harness_cbe: float = 0.0
-    mass_total_cbe: float = 0.0
-    mass_total_mev: float = 0.0
-    mass_margin_pct: float = 0.0
+    # 질량 예산 [kg] (CBE / MEV) — 9 subsystems
+    mass_structure_cbe:   float = 0.0
+    mass_power_cbe:       float = 0.0
+    mass_thermal_cbe:     float = 0.0
+    mass_adcs_cbe:        float = 0.0
+    mass_cdh_cbe:         float = 0.0
+    mass_comms_cbe:       float = 0.0
+    mass_propulsion_cbe:  float = 0.0
+    mass_payload_cbe:     float = 0.0
+    mass_harness_cbe:     float = 0.0
+    mass_total_cbe:       float = 0.0
+    mass_total_mev:       float = 0.0
+    mass_margin_pct:      float = 0.0
     mass_launch_available: float = 100.0
 
+    # 서브시스템별 마진 % (설계 기준값)
+    MASS_MARGINS: Dict[str, float] = field(default_factory=lambda: {
+        "Structure":  15.0,
+        "Power":      10.0,
+        "Thermal":    15.0,
+        "ADCS":        5.0,
+        "C&DH":        5.0,
+        "Comms":      10.0,
+        "Propulsion": 10.0,
+        "Payload":    20.0,
+        "Harness":    20.0,
+    })
+
     # 전력 예산 [W]
-    power_payload_w: float = 0.0
-    power_bus_w: float = 0.0
-    power_total_w: float = 0.0
-    solar_panel_area_m2: float = 0.0
+    power_payload_w:        float = 0.0
+    power_bus_w:            float = 0.0
+    power_total_w:          float = 0.0
+    solar_panel_area_m2:    float = 0.0
     solar_panel_efficiency: float = 0.30
-    battery_capacity_wh: float = 0.0
-    battery_dod_pct: float = 0.0
-    power_margin_pct: float = 0.0
+    solar_generated_w:      float = 0.0    # 일조 중 태양전지 발전량
+    battery_capacity_wh:    float = 0.0
+    battery_dod_pct:        float = 0.0
+    power_margin_w:         float = 0.0    # 마진 [W]
+    power_margin_pct:       float = 0.0
 
     # 링크 예산
     downlink_rate_mbps: float = 0.0
-    data_per_day_gb: float = 0.0
-    link_margin_db: float = 0.0
+    data_per_day_gb:    float = 0.0
+    link_margin_db:     float = 0.0
+    contact_count:      int   = 0          # 일일 접속 횟수
+    contact_time_per_day_min: float = 0.0  # 일일 접속 총 시간
+    uplink_rate_mbps:   float = 10.0       # 기본 업링크 100 Mbps의 1/10
+    data_volume_stored_tb: float = 0.0     # 일일 저장 대역 추산 (탑재체)
 
 
 @dataclass

@@ -43,7 +43,9 @@ class BudgetService:
 
         # 전력 마진
         p_available = SOLAR_CONST * solar_efficiency * p_eol_factor * sat_config.get('panel_area_m2', area) * sf
-        res.power_margin_pct = (p_available - res.power_total_w) / res.power_total_w * 100
+        res.solar_generated_w  = round(p_available, 1)
+        res.power_margin_w     = round(p_available - res.power_total_w, 1)
+        res.power_margin_pct   = (p_available - res.power_total_w) / res.power_total_w * 100
 
         # ── 기초 요구량 연동 (`app.py` Starlink-class 경량 설계 기준 적용) ──
         dual_boards = sat_config.get('dual_boards', 20)
@@ -94,9 +96,13 @@ class BudgetService:
 
         # ── 링크 예산 ──
         contact_min_day = orbit.contact_time_per_day_min
-        res.downlink_rate_mbps = 100.0                # 100 Mbps 기본
-        res.data_per_day_gb = res.downlink_rate_mbps * contact_min_day * 60 / 8 / 1024
-        res.link_margin_db = 3.0
+        res.downlink_rate_mbps       = 100.0                # 100 Mbps 기본
+        res.data_per_day_gb          = res.downlink_rate_mbps * contact_min_day * 60 / 8 / 1024
+        res.link_margin_db           = 3.0
+        res.contact_count            = int(round(orbit.contacts_per_day))
+        res.contact_time_per_day_min = contact_min_day
+        res.uplink_rate_mbps         = 10.0
+        res.data_volume_stored_tb    = res.power_payload_w * 0.001 * 86400 / 1e3  # 간소 추산
 
         return res
 
