@@ -5,9 +5,11 @@ Analysis Worker — v0.8.0
 from PySide6.QtCore import QThread, Signal
 
 from core.domain.orbit import OrbitParams
+from core.domain.structural import StructuralParams
 from core.services.mission_analysis import MissionAnalysisService
 from core.services.thermal_analysis  import ThermalAnalysisService
 from core.services.budget_radiation  import BudgetService, RadiationService, DesignEvaluator
+from adapters.ipsap.ipsap_adapter import StructuralAnalyzer
 from core.pipeline.orchestrator import (
     PipelineOrchestrator, PipelineContext,
     GmatStage, ThermalStage, BudgetStage, RadiationStage, EvaluationStage,
@@ -89,7 +91,35 @@ class AnalysisWorker(QThread):
                 self.error.emit(err)
                 return
 
-            self.finished.emit(ctx.as_result_dict())
+            # ── 구조 해석 (v1.0) ──────────────────────────────────────
+            result_dict = ctx.as_result_dict()
+            try:
+                sc = self.sat_config
+                struct_params = StructuralParams(
+                    total_mass_kg=(
+                        sc.get("mass_bus_kg", 20) +
+                        sc.get("mass_panel_kg", 6) +
+                        sc.get("mass_electronics_kg", 15) +
+                        sc.get("mass_battery_kg", 10)
+                    ),
+                    structure_mass_kg=sc.get("mass_bus_kg", 20),
+                    payload_mass_kg=sc.get("mass_electronics_kg", 15) * 0.3,
+                    electronics_mass_kg=sc.get("mass_electronics_kg", 15) * 0.7,
+                    battery_mass_kg=sc.get("mass_battery_kg", 10),
+                )
+                struct_result = StructuralAnalyzer().run_analysis(struct_params)
+                result_dict["structural"] = struct_result
+                self.log_msg.emit(
+                    f"구조 해석: f1={struct_result.first_freq_hz:.0f} Hz  "
+                    f"σ_max={struct_result.max_von_mises_MPa:.1f} MPa  "
+                    f"MS_y={struct_result.min_ms_yield:.2f}  [{struct_result.overall_status}]",
+                    "success"
+                )
+            except Exception as se:
+                self.log_msg.emit(f"구조 해석 생략: {se}", "warn")
+                result_dict["structural"] = None
+
+            self.finished.emit(result_dict)
 
         except Exception as e:
             import traceback

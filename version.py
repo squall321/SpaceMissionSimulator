@@ -4,17 +4,30 @@ SpaceD-AADE Platform — Version Module
 """
 
 # ── 현재 버전 ────────────────────────────────────────────────────
-MAJOR = 0
-MINOR = 11
+MAJOR = 1
+MINOR = 0
 PATCH = 0
-STAGE = "alpha"
+STAGE = ""
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
-VERSION_FULL = f"v{VERSION}-{STAGE}"
+VERSION_FULL = f"v{VERSION}" if not STAGE else f"v{VERSION}-{STAGE}"
 BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "1.0.0",
+        "date": "2026-03-08",
+        "stage": "",
+        "highlights": "v1.0 정식 릴리스 — 구조 해석 UI + 통합 테스트 + 패키징 완성",
+        "changes": [
+            ("feat", "🏗️ StructuralViewer — 고유진동 바차트 + MarginOfSafety 테이블 + 열응력/랜덤 요약 패널 (Plotly)"),
+            ("feat", "🧪 tests/test_pipeline.py — 전체 파이프라인 pytest 통합 테스트 6클래스 (궤도/열/예산/구조/재료/버전)"),
+            ("feat", "🗂️ Sidebar 'Struct' 탭 + main_window 페이지 8 연결"),
+            ("feat", "📦 PyInstaller .spec 업데이트 — datas 5종 + hiddenimports 8종"),
+            ("release", "🚀 v1.0.0 첫 정식 릴리스 태그"),
+        ],
+    },
     {
         "version": "0.11.0",
         "date": "2026-03-08",

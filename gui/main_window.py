@@ -42,6 +42,7 @@ from gui.widgets.log_panel import LogPanel
 from gui.widgets.settings_dialog import SettingsDialog, load_settings
 from gui.widgets.scorecard_viewer import ScorecardViewer   # v0.9.0
 from gui.widgets.report_dialog import ReportDialog          # v0.9.0
+from gui.widgets.structural_viewer import StructuralViewer  # v1.0
 import version as V
 
 BASE_DIR = Path(__file__).parent
@@ -187,6 +188,10 @@ class MainWindow(QMainWindow):
         # -- 페이지 7: 종합 설계 ScoreCard (v0.9.0) --
         self.scorecard_viewer = ScorecardViewer()
         self.right_stack.addWidget(self.scorecard_viewer)
+
+        # -- 페이지 8: 구조 해석 결과 (v1.0) --
+        self.structural_viewer = StructuralViewer()
+        self.right_stack.addWidget(self.structural_viewer)
 
         # 메인 스플리터
         splitter = QSplitter(Qt.Horizontal)
@@ -445,6 +450,10 @@ class MainWindow(QMainWindow):
         self.budget_viewer.update_data(budget)
         self.scorecard_viewer.update_data(score)   # v0.9.0
 
+        # 구조 해석 결과 갱신 (v1.0)
+        if results.get('structural'):
+            self.structural_viewer.update_data(results['structural'])
+
         # CesiumJS 궤도 데이터 전송
         orbit_dict = self._orbit_to_dict(orbit, budget)
         self.bridge.push_orbit(orbit_dict)
@@ -536,14 +545,15 @@ class MainWindow(QMainWindow):
     def on_nav_changed(self, section: str):
         # Mission Panel이 index 0에 삽입되었으므로 모든 인덱스 +1
         mapping = {
-            "mission":   0,
-            "orbit":     1,
-            "satellite": 2,
-            "thermal":   3,
-            "radiation": 4,
-            "budget":    5,
-            "study":     6,
-            "score":     7,
+            "mission":    0,
+            "orbit":      1,
+            "satellite":  2,
+            "thermal":    3,
+            "radiation":  4,
+            "budget":     5,
+            "study":      6,
+            "score":      7,
+            "structural": 8,   # v1.0
         }
         if section in mapping:
             self.right_stack.setCurrentIndex(mapping[section])
