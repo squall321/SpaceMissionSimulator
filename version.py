@@ -5,7 +5,7 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 7
+MINOR = 8
 PATCH = 0
 STAGE = "alpha"
 
@@ -15,6 +15,21 @@ BUILD_DATE = "2026-03-09"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.8.0",
+        "date": "2026-03-09",
+        "stage": "alpha",
+        "highlights": "Pipeline Orchestrator — 4-Stage DI 기반 파이프라인 아키텍처",
+        "changes": [
+            ("feat", "🏛️ PipelineOrchestrator — Mediator 패턴, FAILED 시 자동 중단"),
+            ("feat", "🗣️ PipelineContext — 공유 상태 + log_fn/progress_fn 콜백"),
+            ("feat", "📊 GmatStage / ThermalStage / BudgetStage / RadiationStage / EvaluationStage"),
+            ("feat", "🔀 StageStatus (SUCCESS|FAILED|SKIPPED) + StageResult 타입 찬안"),
+            ("feat", "📈 MultiOrbitAnalyzer — 순차/병렬 파라메트릭 스윘 (ThreadPoolExecutor)"),
+            ("feat", "➕ generate_orbit_candidates() — list 방식 + range+step 방식 든 지원"),
+            ("refactor", "♻️ AnalysisWorker.run() → PipelineOrchestrator 위임 (서비스 DI 유지)"),
+        ],
+    },
     {
         "version": "0.7.0",
         "date": "2026-03-09",

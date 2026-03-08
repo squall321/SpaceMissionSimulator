@@ -1,13 +1,17 @@
 """
-Analysis Worker
-백그라운드 스레드에서 해석 실행 (UI 블로킹 방지)
+Analysis Worker — v0.8.0
+백그라운드 스레드에서 Pipeline Orchestrator를 통해 해석 실행 (UI 블로킹 방지)
 """
 from PySide6.QtCore import QThread, Signal
 
-from core.domain.orbit   import OrbitParams
+from core.domain.orbit import OrbitParams
 from core.services.mission_analysis import MissionAnalysisService
 from core.services.thermal_analysis  import ThermalAnalysisService
 from core.services.budget_radiation  import BudgetService, RadiationService, DesignEvaluator
+from core.pipeline.orchestrator import (
+    PipelineOrchestrator, PipelineContext,
+    GmatStage, ThermalStage, BudgetStage, RadiationStage, EvaluationStage,
+)
 
 
 class AnalysisWorker(QThread):
@@ -55,83 +59,37 @@ class AnalysisWorker(QThread):
             else:
                 self.log_msg.emit("GMAT 없음 → 내장 해석 엔진 사용", "warn")
 
-            # Stage 1: 궤도 해석
-            self.progress_msg.emit("🌍  Stage 1/4 · Orbit propagation...")
-            self.log_msg.emit("Stage 1/4 · Orbit propagation", "stage")
+            # ── 파이프라인 컨텍스트 구성 ──────────────────────────────────
+            from core.services.mission_analysis import MissionAnalysisService
             stations = list(MissionAnalysisService.DEFAULT_STATIONS) + self.extra_stations
-            self.log_msg.emit(
-                f"  파라미터: h={self.params.altitude_km}km  i={self.params.inclination_deg}°  "
-                f"RAAN={self.params.raan_deg}°  T={self.params.duration_days}d", "info"
-            )
-            self.log_msg.emit(f"  지상국 {len(stations)}개", "info")
 
-            orbit = self.mission_svc.analyze(self.params, stations=stations, sat_config=self.sat_config)
-            if orbit.error:
-                self.log_msg.emit(f"궤도 해석 오류: {orbit.error}", "error")
-                self.error.emit(f"Orbit error: {orbit.error}")
+            ctx = PipelineContext(
+                orbit_params=self.params,
+                sat_config=self.sat_config,
+                stations=stations,
+                log_fn=lambda msg, lv: self.log_msg.emit(msg, lv),
+                progress_fn=lambda msg: self.progress_msg.emit(msg),
+            )
+
+            # ── 오케스트레이터 구성 (서비스 DI) ──────────────────────────
+            orch = PipelineOrchestrator([
+                GmatStage(self.mission_svc),
+                ThermalStage(self.thermal_svc),
+                BudgetStage(self.budget_svc),
+                RadiationStage(self.rad_svc),
+                EvaluationStage(self.evaluator),
+            ])
+
+            # ── 실행 ──────────────────────────────────────────────────────
+            ctx = orch.execute(ctx)
+
+            if not ctx.succeeded:
+                fail_msgs = [r.message for r in ctx.failed_stages]
+                err = ctx.error or "; ".join(fail_msgs) or "파이프라인 실패"
+                self.error.emit(err)
                 return
 
-            used_gmat = gmat_ok and not orbit.error and len(orbit.ephemeris_times) > 100
-            if used_gmat:
-                self.log_msg.emit(
-                    f"  ✓ GMAT 완료  에페메리스={len(orbit.ephemeris_times)}pts  "
-                    f"주기={orbit.period_min:.1f}min  일식수={len(orbit.eclipse_events)}", "success"
-                )
-                self.log_msg.emit(
-                    f"  접속창={len(orbit.contact_windows)}개  "
-                    f"일조율={orbit.sunlight_fraction*100:.1f}%", "gmat"
-                )
-            else:
-                self.log_msg.emit(
-                    f"  ✓ 내부엔진 완료  주기={orbit.period_min:.1f}min  "
-                    f"일조율={orbit.sunlight_fraction*100:.1f}%", "success"
-                )
-
-            # Stage 2: 열해석
-            self.progress_msg.emit("🌡  Stage 2/4 · Thermal analysis...")
-            self.log_msg.emit("Stage 2/4 · Thermal analysis (노드법)", "stage")
-            thermal = self.thermal_svc.analyze(orbit, self.sat_config)
-            t_max = max(thermal.node_temps_max.values(), default=0)
-            t_min = min(thermal.node_temps_min.values(), default=0)
-            self.log_msg.emit(f"  ✓ Tmax={t_max:.1f}°C  Tmin={t_min:.1f}°C", "success")
-
-            # Stage 3: 예산 계산
-            self.progress_msg.emit("⚡  Stage 3/4 · Budget calculation...")
-            self.log_msg.emit("Stage 3/4 · Power/Mass/Link budget", "stage")
-            budget = self.budget_svc.calc_power_budget(
-                orbit,
-                payload_power_w=self.sat_config.get('total_power_w', 800),
-                solar_efficiency=0.30,
-                sat_config=self.sat_config
-            )
-            self.log_msg.emit(
-                f"  ✓ 전력마진={budget.power_margin_w:.1f}W  "
-                f"배터리DOD={budget.battery_dod_pct:.1f}%  "
-                f"데이터={budget.data_per_day_gb:.1f}GB/d", "success"
-            )
-
-            # Stage 4: 방사선 + 평가
-            self.progress_msg.emit("☢  Stage 4/4 · Radiation & scoring...")
-            self.log_msg.emit("Stage 4/4 · Radiation & Design Score", "stage")
-            radiation = self.rad_svc.analyze(
-                orbit,
-                shielding_mm=self.sat_config.get('shielding_mm', 3.0)
-            )
-
-            score = self.evaluator.evaluate(orbit, budget, radiation, t_max, t_min)
-            self.log_msg.emit(
-                f"  ✓ TID={radiation.tid_krad_5yr:.1f}krad  "
-                f"종합점수={score.total_score:.0f}  등급={score.grade}", "success"
-            )
-            self.log_msg.emit("─" * 55, "debug")
-
-            self.finished.emit({
-                'orbit':     orbit,
-                'thermal':   thermal,
-                'budget':    budget,
-                'radiation': radiation,
-                'score':     score,
-            })
+            self.finished.emit(ctx.as_result_dict())
 
         except Exception as e:
             import traceback
