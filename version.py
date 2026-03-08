@@ -6,7 +6,7 @@ SpaceD-AADE Platform — Version Module
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
 MINOR = 2
-PATCH = 0
+PATCH = 2
 STAGE = "alpha"   # alpha / beta / rc / release
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
@@ -15,6 +15,32 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.2.2",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "Mission Card — QPainter Fancy Redesign",
+        "changes": [
+            ("feat", "🎨 MissionTypeCard QPainter 커스텀 렌더링 — 상단 컬러 액센트 바 (그라디언트)"),
+            ("feat", "✨ 선택 시 색상 글로우 효과 (QRadialGradient)"),
+            ("feat", "🖱️ 호버 시 배경 페이드 + 우하단 도트 하이라이트"),
+            ("feat", "🔲 상태별 테두리: 기본 1px → 호버 1.5px → 선택 2px solid"),
+            ("feat", "🚫 coming_soon 카드: 외곽선 대시 스타일 + 선택 비활성"),
+        ],
+    },
+    {
+        "version": "0.2.1",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "Mission Panel UX 전면 개선",
+        "changes": [
+            ("fix",  "👁️ 슬라이더 min/max 범위 레이블 추가 — 범위 가시성 해결"),
+            ("fix",  "🔤 라벨 텍스트 색상 밝기 향상 (#b8d4e8, 현재값 #00e8ff)"),
+            ("fix",  "📐 슬라이더 핸들 18px + 그루브 6px — 조작감 개선"),
+            ("fix",  "🌐 CoverageToggle 30px 높이 + 2px 활성 테두리"),
+            ("fix",  "✅ StatusRow 좌측 컬러 보더 + 배경 틴트 (충족/미달 구분)"),
+        ],
+    },
     {
         "version": "0.2.0",
         "date": "2026-03-08",

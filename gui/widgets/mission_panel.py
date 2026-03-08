@@ -11,8 +11,8 @@ from PySide6.QtWidgets import (
     QSlider, QGridLayout, QFrame, QScrollArea, QButtonGroup,
     QSizePolicy, QSpacerItem
 )
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtGui  import QFont
+from PySide6.QtCore import Signal, Qt, QPropertyAnimation, QEasingCurve, QRect
+from PySide6.QtGui  import QFont, QPainter, QColor, QPen, QBrush, QLinearGradient, QRadialGradient, QPainterPath
 
 import sys
 from pathlib import Path
@@ -205,95 +205,81 @@ class ReqSlider(QWidget):
 
 
 # ══════════════════════════════════════════════════════════════════
-#  MissionTypeCard
+#  MissionTypeCard — QPainter 커스텀 렌더링
 # ══════════════════════════════════════════════════════════════════
 class MissionTypeCard(QPushButton):
+    """컬러 상단 액센트 바 + 글로우 테두리 + 호버 페이드 카드"""
+
     def __init__(self, info: dict):
         super().__init__()
         self.setCheckable(True)
-        self.info = info
-        self._color = info["color"]
-        self._coming = info.get("coming_soon", False)
-        self.setFixedHeight(80)
+        self.info      = info
+        self._color    = info["color"]
+        self._coming   = info.get("coming_soon", False)
+        self._hover    = False
+        self._c        = QColor(self._color)   # accent QColor
+        self.setFixedHeight(86)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFlat(True)
+        # 배경 없는 투명 베이스 (paintEvent에서 직접 그림)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self.setStyleSheet("border: none; background: transparent;")
 
+        # ── 자식 위젯 ──────────────────────────────────────────
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(8, 7, 8, 6)
+        lay.setContentsMargins(10, 28, 10, 8)   # 상단 28px = 액센트 바 높이 이후
         lay.setSpacing(2)
 
-        top = QHBoxLayout()
-        top.setContentsMargins(0, 0, 0, 0)
-        icon_lbl = QLabel(info["icon"])
-        icon_lbl.setFont(QFont("Segoe UI Emoji", 17))
-        icon_lbl.setStyleSheet("color: inherit; background: transparent;")
-        top.addWidget(icon_lbl)
-        if self._coming:
-            badge = QLabel("SOON")
-            badge.setStyleSheet(
-                "color: #00f5d4; background: rgba(0,245,212,0.15);"
-                "border: 1px solid rgba(0,245,212,0.55); border-radius: 3px;"
-                "font-size: 8px; font-weight: 700; padding: 1px 5px;"
-            )
-            top.addStretch()
-            top.addWidget(badge)
-        lay.addLayout(top)
+        # 아이콘 + 이름 한 줄
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
 
-        name_lbl = QLabel(info["name"])
-        name_lbl.setStyleSheet(
-            "color: inherit; background: transparent;"
+        self._icon_lbl = QLabel(info["icon"])
+        self._icon_lbl.setFont(QFont("Segoe UI Emoji", 18))
+        self._icon_lbl.setStyleSheet("background: transparent; border: none;")
+        self._icon_lbl.setFixedWidth(28)
+        row.addWidget(self._icon_lbl)
+
+        name_col = QVBoxLayout()
+        name_col.setSpacing(0)
+        self._name_lbl = QLabel(info["name"])
+        self._name_lbl.setStyleSheet(
+            "color: #ffffff; background: transparent; border: none;"
             "font-size: 11px; font-weight: 800;"
         )
-        lay.addWidget(name_lbl)
+        name_col.addWidget(self._name_lbl)
 
-        desc_lbl = QLabel(info["desc"])
-        desc_lbl.setStyleSheet(
-            "color: rgba(205,228,242,0.80); background: transparent;"
-            "font-size: 9px;"
+        self._desc_lbl = QLabel(info["desc"].replace("\n", "  "))
+        self._desc_lbl.setStyleSheet(
+            "color: rgba(200,228,245,0.72); background: transparent; border: none;"
+            "font-size: 8px;"
         )
-        desc_lbl.setWordWrap(True)
-        lay.addWidget(desc_lbl)
+        name_col.addWidget(self._desc_lbl)
+        row.addLayout(name_col, 1)
 
-        self._set_style(False)
-
-    def _rgb(self, h: str) -> str:
-        h = h.lstrip("#")
-        return f"{int(h[0:2],16)},{int(h[2:4],16)},{int(h[4:6],16)}"
-
-    def _set_style(self, checked: bool):
-        c = self._color
-        r = self._rgb(c)
         if self._coming:
-            ss = f"""
-            MissionTypeCard {{
-                background: rgba(0,40,40,0.40);
-                border: 1px dashed rgba(0,245,212,0.30);
-                border-radius: 7px; color: rgba(155,195,185,0.60);
-            }}
-            MissionTypeCard:hover {{
-                background: rgba(0,55,52,0.55);
-                border: 1px dashed rgba(0,245,212,0.65);
-                color: rgba(180,220,210,0.85);
-            }}"""
-        elif checked:
-            ss = f"""
-            MissionTypeCard {{
-                background: rgba({r}, 0.22);
-                border: 2px solid {c};
-                border-radius: 7px; color: #ffffff;
-            }}"""
-        else:
-            ss = f"""
-            MissionTypeCard {{
-                background: rgba(20,38,56,0.75);
-                border: 1px solid rgba(65,88,108,0.65);
-                border-radius: 7px; color: rgba(195,218,232,0.88);
-            }}
-            MissionTypeCard:hover {{
-                background: rgba({r}, 0.13);
-                border: 1px solid rgba({r}, 0.75);
-                color: #ffffff;
-            }}"""
-        self.setStyleSheet(ss)
+            soon = QLabel("SOON")
+            soon.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+            soon.setStyleSheet(
+                "color: #00f5d4; background: rgba(0,245,212,0.15);"
+                "border: 1px solid rgba(0,245,212,0.5); border-radius: 3px;"
+                "font-size: 7px; font-weight: 800; padding: 1px 4px;"
+            )
+            row.addWidget(soon)
+
+        lay.addLayout(row)
+
+    # ── 호버 감지 ────────────────────────────────────────────────
+    def enterEvent(self, e):
+        self._hover = True
+        self.update()
+        super().enterEvent(e)
+
+    def leaveEvent(self, e):
+        self._hover = False
+        self.update()
+        super().leaveEvent(e)
 
     def nextCheckState(self):
         if not self._coming:
@@ -301,7 +287,91 @@ class MissionTypeCard(QPushButton):
 
     def setChecked(self, v: bool):
         super().setChecked(v)
-        self._set_style(v)
+        self._name_lbl.setStyleSheet(
+            f"color: {'#ffffff' if v else 'rgba(210,230,245,0.92)'};"
+            "background: transparent; border: none;"
+            "font-size: 11px; font-weight: 800;"
+        )
+        self.update()
+
+    # ── 커스텀 페인트 ────────────────────────────────────────────
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        w, h = self.width(), self.height()
+        r     = 8          # corner radius
+        c     = self._c
+        chk   = self.isChecked()
+        hov   = self._hover and not self._coming
+
+        # ── 1. 배경 ──────────────────────────────────────────────
+        path = QPainterPath()
+        path.addRoundedRect(0, 0, w, h, r, r)
+
+        if self._coming:
+            bg = QColor(10, 32, 30, 120)
+        elif chk:
+            bg = QColor(c.red(), c.green(), c.blue(), 52)
+        elif hov:
+            bg = QColor(c.red(), c.green(), c.blue(), 30)
+        else:
+            bg = QColor(16, 30, 48, 185)
+
+        p.fillPath(path, QBrush(bg))
+
+        # ── 2. 테두리 ────────────────────────────────────────────
+        if self._coming:
+            pen = QPen(QColor(0, 245, 212, 80), 1, Qt.PenStyle.DashLine)
+        elif chk:
+            pen = QPen(c, 2)
+        elif hov:
+            pen = QPen(QColor(c.red(), c.green(), c.blue(), 180), 1.5)
+        else:
+            pen = QPen(QColor(60, 85, 110, 160), 1)
+        p.setPen(pen)
+        p.drawPath(path)
+
+        # ── 3. 상단 액센트 바 (선택/호버 시 컬러) ──────────────
+        bar_h = 3
+        bar_path = QPainterPath()
+        bar_path.addRoundedRect(0, 0, w, bar_h + r, r, r)
+        # 하단을 평평하게 자름
+        bar_path.addRect(0, bar_h, w, r)
+
+        if self._coming:
+            bar_alpha = 60
+        elif chk:
+            bar_alpha = 255
+        elif hov:
+            bar_alpha = 160
+        else:
+            bar_alpha = 55
+
+        grad = QLinearGradient(0, 0, w, 0)
+        grad.setColorAt(0, QColor(c.red(), c.green(), c.blue(), bar_alpha))
+        grad.setColorAt(1, QColor(c.red(), c.green(), c.blue(),
+                                   max(0, bar_alpha - 80)))
+        p.fillPath(bar_path, QBrush(grad))
+
+        # ── 4. 선택 시 글로우 ────────────────────────────────────
+        if chk:
+            glow = QRadialGradient(w / 2, 0, w * 0.7)
+            glow.setColorAt(0,   QColor(c.red(), c.green(), c.blue(), 40))
+            glow.setColorAt(0.6, QColor(c.red(), c.green(), c.blue(), 12))
+            glow.setColorAt(1,   QColor(0, 0, 0, 0))
+            p.fillPath(path, QBrush(glow))
+
+        # ── 5. 호버 시 우측 하이라이트 점 ───────────────────────
+        if hov and not chk:
+            dot = QRadialGradient(w - 12, h - 12, 16)
+            dot.setColorAt(0,   QColor(c.red(), c.green(), c.blue(), 50))
+            dot.setColorAt(1,   QColor(0, 0, 0, 0))
+            p.fillPath(path, QBrush(dot))
+
+        p.end()
+        # 자식 위젯은 Qt가 자동으로 그림
+        super().paintEvent(event)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -466,7 +536,8 @@ class MissionPanel(QWidget):
         # ── 미션 타입 카드 ────────────────────────────────────
         lay.addWidget(self._sec("MISSION TYPE"))
         grid = QGridLayout()
-        grid.setSpacing(5)
+        grid.setSpacing(6)
+        grid.setContentsMargins(0, 2, 0, 2)
         bg = QButtonGroup(self)
         bg.setExclusive(True)
         for i, info in enumerate(MISSION_TYPES):
