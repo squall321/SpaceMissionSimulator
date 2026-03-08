@@ -251,7 +251,89 @@
     #sat-manager-container button:hover {
       background: rgba(0, 220, 255, 0.3);
     }
+
+    /* ── Satellite 3D Viewer (v0.4.0) ── */
+    #satViewerContainer {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #020508;
+      z-index: 5;
+    }
+
+    #satViewerContainer canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* HUD 오버레이 — Satellite 탭 전용 */
+    #satViewerHud {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(8, 14, 28, 0.82);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 220, 255, 0.22);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #d8eaf4;
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 11.5px;
+      line-height: 1.85;
+      min-width: 210px;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    #satViewerHud .sv-title {
+      font-size: 9.5px;
+      color: #00dcff;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(0, 220, 255, 0.18);
+    }
+
+    #satViewerHud .sv-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    #satViewerHud .sv-lbl { color: #6a8a9a; }
+    #satViewerHud .sv-val { color: #d8eaf4; font-weight: bold; }
+    #satViewerHud .sv-cyan { color: #00dcff; }
+
+    /* 버스 타입 배지 (좌하단) */
+    #satBusTypeBadge {
+      position: absolute;
+      bottom: 18px;
+      left: 14px;
+      background: rgba(0, 220, 255, 0.08);
+      border: 1px solid rgba(0, 220, 255, 0.30);
+      border-radius: 4px;
+      padding: 4px 12px;
+      color: #00dcff;
+      font-family: 'Consolas', monospace;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      pointer-events: none;
+      z-index: 6;
+    }
   </style>
+
+  <!-- Three.js r150 ESM importmap (LocalContentCanAccessRemoteUrls = True 으로 CDN 로드 가능) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three":           "https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.module.js",
+      "three/addons/":   "https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 
 <body>
@@ -376,6 +458,9 @@
       });
 
       document.getElementById('loading').style.display = 'none';
+
+      // v0.4.0: Satellite 3D Viewer 에서 requestRenderMode 제어 시 사용
+      window._cesiumViewer = viewer;
 
       // 시계 이벤트
       viewer.clock.onTick.addEventListener(onClockTick);
@@ -776,6 +861,17 @@
     // 초기화
     window.addEventListener('load', initCesium);
   </script>
+
+  <!-- Satellite 3D Viewer 컨테이너 (v0.4.0) -->
+  <div id="satViewerContainer">
+    <canvas id="satCanvas"></canvas>
+    <div id="satViewerHud"><!-- JS로 채워짐 --></div>
+    <div id="satBusTypeBadge">SATELLITE VIEWER</div>
+  </div>
+
+  <!-- sat_viewer 모듈 (ESM) -->
+  <script type="module" src="sat_viewer/sat_controller.js"></script>
+
 </body>
 
 </html>

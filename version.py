@@ -5,7 +5,7 @@ SpaceD-AADE Platform — Version Module
 
 # ── 현재 버전 ────────────────────────────────────────────────────
 MAJOR = 0
-MINOR = 3
+MINOR = 4
 PATCH = 0
 STAGE = "alpha"
 
@@ -15,6 +15,23 @@ BUILD_DATE = "2026-03-08"
 
 # ── 체인지로그 (최신순) ────────────────────────────────────────────
 CHANGELOG = [
+    {
+        "version": "0.4.0",
+        "date": "2026-03-08",
+        "stage": "alpha",
+        "highlights": "Satellite 3D Viewer — Three.js ESM Two-Canvas 통합",
+        "changes": [
+            ("feat", "🛰️ Satellite 탭 전용 Three.js r150 3D 위성 형상 뷰어"),
+            ("feat", "🔧 6종 버스 타입 자동 선택 — dual_boards 수량 기반 (3U/6U/SmallSat/MedSat/LargeSat/DatacenterSat)"),
+            ("feat", "☀️ PBR 재질 — 태양전지판 CanvasTexture 격자, MLI 금박, 알루미늄 구조체"),
+            ("feat", "💡 물리 기반 조명 — 태양광(그림자), 지구 반사광, 보조광 3점 조명"),
+            ("feat", "🔄 OrbitControls 자동 회전 + 수동 조작 3초 후 자동 재개"),
+            ("feat", "📐 bbox 기반 카메라 거리 자동 조정 — 버스 크기에 맞게 FOV 최적화"),
+            ("feat", "⚡ show/hide Two-Canvas 전환 — Cesium requestRenderMode 저전력 연동"),
+            ("feat", "🔁 config_changed → updateSatViewer 실시간 형상 갱신 (debounce 800ms)"),
+            ("feat", "✅ Sprint 0 검증 10/10 PASS — tools/sprint0_three_test.py/.html"),
+        ],
+    },
     {
         "version": "0.3.0",
         "date": "2026-03-09",

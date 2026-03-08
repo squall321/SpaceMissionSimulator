@@ -232,7 +232,8 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self):
         self.orbit_config.params_changed.connect(self.trigger_analysis)
-        # self.sat_config_panel.config_changed.connect(self.trigger_analysis)
+        # v0.4.0: 위성 설정 변경 시 3D 뷰어 실시간 업데이트
+        self.sat_config_panel.config_changed.connect(self._on_sat_config_changed)
         self.sidebar.nav_changed.connect(self.on_nav_changed)
         self.sidebar.optimize_clicked.connect(self.show_optimization_dialog)
         self.dashboard.satellite_selected.connect(self.on_satellite_selected)
@@ -241,6 +242,14 @@ class MainWindow(QMainWindow):
         self.mission_panel.orbit_recommended.connect(self._apply_recommended_orbit)
         # Parametric Study 시그널
         self.parametric_panel.orbit_selected.connect(self._on_parametric_orbit)
+
+    def _on_sat_config_changed(self, cfg: dict):
+        """위성 설정 변경 → Satellite 탭 활성화 중일 때 3D 뷰어 실시간 업데이트"""
+        if self.right_stack.currentIndex() == 2:  # satellite tab
+            page = self.globe_view.page()
+            page.runJavaScript(
+                f"window.updateSatViewer && window.updateSatViewer({json.dumps(cfg)})"
+            )
 
     def show_comparison_dialog(self):
         if not hasattr(self, 'results_history') or not self.results_history:
@@ -444,6 +453,14 @@ class MainWindow(QMainWindow):
         }
         if section in mapping:
             self.right_stack.setCurrentIndex(mapping[section])
+
+        # v0.4.0: Satellite 3D Viewer show/hide
+        page = self.globe_view.page()
+        if section == "satellite":
+            cfg = json.dumps(self.sat_config_panel.get_config())
+            page.runJavaScript(f"window.showSatViewer && window.showSatViewer({cfg})")
+        else:
+            page.runJavaScript("window.hideSatViewer && window.hideSatViewer()")
 
     # ── 스타일 ─────────────────────────────────────────────────
     def _apply_stylesheet(self):
